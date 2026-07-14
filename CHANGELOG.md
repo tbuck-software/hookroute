@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Bilingual product tour with authentic dashboard, route, and event views
+- Reproducible Playwright command for refreshing all public product screenshots
+- Hookroute favicon and browser theme color
+
 ## [0.1.0] - 2026-07-14
 
 ### Added

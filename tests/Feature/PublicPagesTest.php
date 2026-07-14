@@ -13,6 +13,19 @@ it('renders the public landing page', function () {
             ->has('repositoryUrl'));
 });
 
+it('ships the public product imagery and favicon', function () {
+    expect(public_path('favicon.ico'))->toBeFile()
+        ->and(filesize(public_path('favicon.ico')))->toBeGreaterThan(0)
+        ->and(public_path('favicon.svg'))->toBeFile()
+        ->and(public_path('images/product/dashboard.jpg'))->toBeFile()
+        ->and(public_path('images/product/route-editor.jpg'))->toBeFile()
+        ->and(public_path('images/product/event-detail.jpg'))->toBeFile();
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('/favicon.svg', false);
+});
+
 it('renders the english landing page', function () {
     $this->get(route('home.en'))
         ->assertOk()

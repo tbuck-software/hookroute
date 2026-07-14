@@ -26,6 +26,7 @@ const navigation =
     props.locale === 'de'
         ? {
               aria: 'Hauptnavigation',
+              tour: 'Einblicke',
               model: 'Funktionsweise',
               features: 'Funktionen',
               pricing: 'Preise',
@@ -42,6 +43,7 @@ const navigation =
           }
         : {
               aria: 'Main navigation',
+              tour: 'Product tour',
               model: 'How it works',
               features: 'Features',
               pricing: 'Pricing',
@@ -66,6 +68,7 @@ const navigation =
             </Link>
 
             <nav class="public-nav-links" :aria-label="navigation.aria">
+                <a :href="`${homeUrl}#tour`">{{ navigation.tour }}</a>
                 <a :href="`${homeUrl}#model`">{{ navigation.model }}</a>
                 <a :href="`${homeUrl}#features`">{{ navigation.features }}</a>
                 <a :href="`${homeUrl}#pricing`">{{ navigation.pricing }}</a>
@@ -124,6 +127,7 @@ const navigation =
             <div class="public-footer-links">
                 <div>
                     <span class="section-label">{{ navigation.product }}</span>
+                    <a :href="`${homeUrl}#tour`">{{ navigation.tour }}</a>
                     <a :href="`${homeUrl}#model`">{{ navigation.model }}</a>
                     <a :href="`${homeUrl}#features`">{{
                         navigation.features

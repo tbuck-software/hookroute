@@ -3,7 +3,7 @@ import AppIcon from '@/Components/App/AppIcon.vue';
 import { landingCopy, type LandingLocale } from '@/content/landing';
 import PublicLayout from '@/Layouts/PublicLayout.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
     canRegister: boolean;
@@ -13,6 +13,10 @@ const props = defineProps<{
 
 const page = usePage<any>();
 const copy = computed(() => landingCopy[props.locale]);
+const activeTour = ref(0);
+const activeTourItem = computed(
+    () => copy.value.tour.items[activeTour.value] ?? copy.value.tour.items[0],
+);
 const contactEmail = ['mail', 'tbuck.de'].join('@');
 const setupSubject = computed(() =>
     encodeURIComponent(copy.value.pricing.setup.subject),
@@ -74,7 +78,7 @@ const canonicalUrl = computed(() =>
                         >
                             {{ copy.hero.primaryCta }}
                         </Link>
-                        <a href="#model" class="btn btn-soft">
+                        <a href="#tour" class="btn btn-soft">
                             {{ copy.hero.secondaryCta }}
                         </a>
                     </div>
@@ -146,6 +150,68 @@ const canonicalUrl = computed(() =>
                         </article>
                     </div>
                     <p class="signal-caption">{{ copy.signal.caption }}</p>
+                </div>
+            </section>
+
+            <section id="tour" class="landing-section tour-section">
+                <header class="landing-section-head">
+                    <span class="eyebrow landing-eyebrow">
+                        {{ copy.tour.eyebrow }}
+                    </span>
+                    <h2>
+                        {{ copy.tour.heading }}<br />{{
+                            copy.tour.headingSecond
+                        }}
+                    </h2>
+                    <p>{{ copy.tour.intro }}</p>
+                </header>
+
+                <div class="tour-frame">
+                    <div class="tour-selector">
+                        <button
+                            v-for="(item, index) in copy.tour.items"
+                            :key="item.title"
+                            type="button"
+                            class="tour-option"
+                            :class="{ active: activeTour === index }"
+                            :aria-pressed="activeTour === index"
+                            @click="activeTour = index"
+                        >
+                            <span>{{
+                                String(index + 1).padStart(2, '0')
+                            }}</span>
+                            <strong>{{ item.title }}</strong>
+                            <small>{{ item.text }}</small>
+                        </button>
+                    </div>
+
+                    <figure class="tour-stage">
+                        <div class="tour-window-bar" aria-hidden="true">
+                            <span /><span /><span />
+                            <strong>APP.HOOKROUTE / DEMO</strong>
+                        </div>
+                        <a
+                            :href="activeTourItem.image"
+                            target="_blank"
+                            rel="noreferrer"
+                            class="tour-image-link"
+                            :aria-label="copy.tour.openImage"
+                        >
+                            <img
+                                :src="activeTourItem.image"
+                                :alt="activeTourItem.alt"
+                                width="1440"
+                                height="1100"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </a>
+                        <figcaption>
+                            <strong>{{ activeTourItem.title }}</strong>
+                            <p>{{ activeTourItem.text }}</p>
+                            <span>↗</span>
+                        </figcaption>
+                    </figure>
                 </div>
             </section>
 

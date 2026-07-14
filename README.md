@@ -4,6 +4,21 @@ Hookroute is a focused, self-hosted webhook gateway. It captures inbound request
 
 It is deliberately smaller than a general workflow engine and can run on ordinary PHP/MySQL hosting with one cron entry—no Redis, Docker, or resident process is required.
 
+## Product tour
+
+![Hookroute dashboard with project metrics and an event stream](public/images/product/dashboard.jpg)
+
+<table>
+    <tr>
+        <td width="50%"><img src="public/images/product/route-editor.jpg" alt="Hookroute route editor"></td>
+        <td width="50%"><img src="public/images/product/event-detail.jpg" alt="Hookroute event detail"></td>
+    </tr>
+    <tr>
+        <td><strong>Explicit routes</strong><br>Connect a source and destination, filter events, and shape the outgoing payload.</td>
+        <td><strong>Inspectable events</strong><br>Review the captured request and every independent delivery attempt.</td>
+    </tr>
+</table>
+
 ## Capabilities
 
 - Multiple users, shared projects, invitations, and owner/admin/member roles
@@ -57,6 +72,18 @@ The public landing page includes the product model, feature overview, fixed-pric
 ```dotenv
 HOOKROUTE_REPOSITORY_URL=https://github.com/tbuck-software/hookroute
 ```
+
+### Refreshing product screenshots
+
+The product images on the landing page and in this README are generated from the seeded demo project with Playwright. Install its Chromium build once, keep Sail running, and capture all three views with one command:
+
+```bash
+npm run screenshots:install
+sail up -d
+npm run screenshots
+```
+
+The capture script recreates only the `demo@hookroute.test` account and its `production-systems` project. Other local users and projects are not changed. Set `HOOKROUTE_SCREENSHOT_BASE_URL` when the application is available at a URL other than `APP_URL`.
 
 Run the scheduler during development in a second terminal so database-queued deliveries and digests are processed:
 

@@ -13,7 +13,7 @@ export const landingCopy = {
             emphasis: 'Klar verteilen.',
             lede: 'Webhooks zentral empfangen, prüfen, umformen und an alle benötigten Systeme zustellen. Mit zuverlässigem Fan-out, Wiederholungen und E-Mail-Sammlungen – ohne eine ganze Workflow-Fabrik zu betreiben.',
             primaryCta: 'Erste Quelle anlegen →',
-            secondaryCta: 'So funktioniert es ↓',
+            secondaryCta: 'App ansehen ↓',
             technologyLabel: 'Technologie',
         },
         signal: {
@@ -26,6 +26,33 @@ export const landingCopy = {
             queued: 'WARTEND',
             caption:
                 'Ein Request hinein. Drei unabhängige Zustellungen hinaus.',
+        },
+        tour: {
+            eyebrow: 'Produkt-Tour',
+            heading: 'Keine Katze im Sack.',
+            headingSecond: 'Die echte App, drei Blickwinkel.',
+            intro: 'Keine Renderings und kein geschöntes Konzept: Diese Ansichten stammen direkt aus der laufenden Demo-Installation. Öffne jedes Bild bei Bedarf in voller Größe.',
+            openImage: 'Screenshot in voller Größe öffnen',
+            items: [
+                {
+                    title: 'Zentrale Übersicht',
+                    text: 'Projektzustand, Quellen, Routen und aktuelle Zustellungen auf einen Blick.',
+                    image: '/images/product/dashboard.jpg',
+                    alt: 'Hookroute-Dashboard mit Projektmetriken und Event-Stream',
+                },
+                {
+                    title: 'Explizite Routen',
+                    text: 'Quelle und Ziel verbinden, Payload-Modus wählen und Ausgaben direkt templaten.',
+                    image: '/images/product/route-editor.jpg',
+                    alt: 'Hookroute-Dialog zum Bearbeiten einer Webhook-Route',
+                },
+                {
+                    title: 'Nachvollziehbare Events',
+                    text: 'Payload, Rohdaten und jede unabhängige Zustellung gemeinsam untersuchen.',
+                    image: '/images/product/event-detail.jpg',
+                    alt: 'Hookroute-Eventdetail mit Payload und Zustellversuchen',
+                },
+            ],
         },
         model: {
             eyebrow: 'Das Modell',
@@ -167,7 +194,7 @@ export const landingCopy = {
             emphasis: 'Route clearly.',
             lede: 'Capture, inspect, reshape and deliver events to every system that needs them. Reliable fan-out, replay and email digests—without running a workflow factory.',
             primaryCta: 'Create your first source →',
-            secondaryCta: 'See how it works ↓',
+            secondaryCta: 'See the app ↓',
             technologyLabel: 'Technology',
         },
         signal: {
@@ -179,6 +206,33 @@ export const landingCopy = {
             digest: 'EMAIL DIGEST',
             queued: 'QUEUED',
             caption: 'One request in. Three independent deliveries out.',
+        },
+        tour: {
+            eyebrow: 'Product tour',
+            heading: 'See the actual product.',
+            headingSecond: 'Three views, no mock-ups.',
+            intro: 'These are not renders or a polished concept. Every view comes directly from the running demo installation, and each image opens at full size.',
+            openImage: 'Open screenshot at full size',
+            items: [
+                {
+                    title: 'Operations overview',
+                    text: 'Project health, sources, routes and recent deliveries in one place.',
+                    image: '/images/product/dashboard.jpg',
+                    alt: 'Hookroute dashboard with project metrics and event stream',
+                },
+                {
+                    title: 'Explicit routes',
+                    text: 'Connect a source and destination, select the payload mode and shape the output.',
+                    image: '/images/product/route-editor.jpg',
+                    alt: 'Hookroute dialog for editing a webhook route',
+                },
+                {
+                    title: 'Inspectable events',
+                    text: 'Review the payload, raw input and every independent delivery together.',
+                    image: '/images/product/event-detail.jpg',
+                    alt: 'Hookroute event detail with payload and delivery attempts',
+                },
+            ],
         },
         model: {
             eyebrow: 'The model',
