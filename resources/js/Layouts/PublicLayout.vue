@@ -1,14 +1,60 @@
 <script setup lang="ts">
+import type { LandingLocale } from '@/content/landing';
 import { Link, usePage } from '@inertiajs/vue3';
+import { watchEffect } from 'vue';
 
-defineProps<{
-    repositoryUrl?: string;
-}>();
+const props = withDefaults(
+    defineProps<{
+        locale?: LandingLocale;
+        repositoryUrl?: string;
+    }>(),
+    { locale: 'de' },
+);
 
 const page = usePage<any>();
-const homeUrl = route('home');
+const homeUrl = props.locale === 'en' ? route('home.en') : route('home');
 const contactEmail = ['mail', 'tbuck.de'].join('@');
 const year = new Date().getFullYear();
+
+watchEffect(() => {
+    if (typeof document !== 'undefined') {
+        document.documentElement.lang = props.locale;
+    }
+});
+
+const navigation =
+    props.locale === 'de'
+        ? {
+              aria: 'Hauptnavigation',
+              model: 'Funktionsweise',
+              features: 'Funktionen',
+              pricing: 'Preise',
+              source: 'Open Source',
+              console: 'Konsole öffnen →',
+              signIn: 'Anmelden →',
+              description:
+                  'Ein fokussiertes, selbst gehostetes Webhook-Gateway.',
+              product: 'Produkt',
+              project: 'Projekt',
+              contact: 'Kontakt',
+              imprint: 'Impressum',
+              privacy: 'Datenschutz',
+          }
+        : {
+              aria: 'Main navigation',
+              model: 'How it works',
+              features: 'Features',
+              pricing: 'Pricing',
+              source: 'Open source',
+              console: 'Open console →',
+              signIn: 'Sign in →',
+              description: 'A focused, self-hosted webhook gateway.',
+              product: 'Product',
+              project: 'Project',
+              contact: 'Contact',
+              imprint: 'Imprint',
+              privacy: 'Privacy',
+          };
 </script>
 
 <template>
@@ -19,14 +65,30 @@ const year = new Date().getFullYear();
                 <span class="brand-word">hookroute</span>
             </Link>
 
-            <nav class="public-nav-links" aria-label="Main navigation">
-                <a :href="`${homeUrl}#model`">How it works</a>
-                <a :href="`${homeUrl}#features`">Features</a>
-                <a :href="`${homeUrl}#pricing`">Pricing</a>
-                <a :href="`${homeUrl}#open-source`">Open source</a>
+            <nav class="public-nav-links" :aria-label="navigation.aria">
+                <a :href="`${homeUrl}#model`">{{ navigation.model }}</a>
+                <a :href="`${homeUrl}#features`">{{ navigation.features }}</a>
+                <a :href="`${homeUrl}#pricing`">{{ navigation.pricing }}</a>
+                <a :href="`${homeUrl}#open-source`">{{ navigation.source }}</a>
             </nav>
 
             <div class="public-nav-actions">
+                <div class="language-switch" aria-label="Language / Sprache">
+                    <Link
+                        :href="route('home')"
+                        hreflang="de"
+                        :aria-current="locale === 'de' ? 'page' : undefined"
+                        :class="{ active: locale === 'de' }"
+                        >DE</Link
+                    >
+                    <Link
+                        :href="route('home.en')"
+                        hreflang="en"
+                        :aria-current="locale === 'en' ? 'page' : undefined"
+                        :class="{ active: locale === 'en' }"
+                        >EN</Link
+                    >
+                </div>
                 <a
                     v-if="repositoryUrl"
                     :href="repositoryUrl"
@@ -41,10 +103,10 @@ const year = new Date().getFullYear();
                     :href="route('dashboard')"
                     class="btn btn-primary"
                 >
-                    Open console →
+                    {{ navigation.console }}
                 </Link>
                 <Link v-else :href="route('login')" class="btn btn-primary">
-                    Sign in →
+                    {{ navigation.signIn }}
                 </Link>
             </div>
         </header>
@@ -57,17 +119,19 @@ const year = new Date().getFullYear();
                     <span class="brand-mark" />
                     <span class="brand-word">hookroute</span>
                 </Link>
-                <p>A focused, self-hosted webhook gateway.</p>
+                <p>{{ navigation.description }}</p>
             </div>
             <div class="public-footer-links">
                 <div>
-                    <span class="section-label">Product</span>
-                    <a :href="`${homeUrl}#model`">How it works</a>
-                    <a :href="`${homeUrl}#features`">Features</a>
-                    <a :href="`${homeUrl}#pricing`">Pricing</a>
+                    <span class="section-label">{{ navigation.product }}</span>
+                    <a :href="`${homeUrl}#model`">{{ navigation.model }}</a>
+                    <a :href="`${homeUrl}#features`">{{
+                        navigation.features
+                    }}</a>
+                    <a :href="`${homeUrl}#pricing`">{{ navigation.pricing }}</a>
                 </div>
                 <div>
-                    <span class="section-label">Project</span>
+                    <span class="section-label">{{ navigation.project }}</span>
                     <a
                         v-if="repositoryUrl"
                         :href="repositoryUrl"
@@ -75,9 +139,15 @@ const year = new Date().getFullYear();
                         rel="noreferrer"
                         >GitHub ↗</a
                     >
-                    <a :href="`mailto:${contactEmail}`">Contact</a>
-                    <Link :href="route('imprint')">Imprint</Link>
-                    <Link :href="route('privacy')">Privacy</Link>
+                    <a :href="`mailto:${contactEmail}`">{{
+                        navigation.contact
+                    }}</a>
+                    <Link :href="route('imprint')">{{
+                        navigation.imprint
+                    }}</Link>
+                    <Link :href="route('privacy')">{{
+                        navigation.privacy
+                    }}</Link>
                 </div>
             </div>
             <p class="public-copyright">© {{ year }} Torben Buck</p>

@@ -15,18 +15,41 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', fn (Request $request, RegistrationGate $registration) => Inertia::render('Welcome', [
-    'canRegister' => $registration->allows($request),
-    'repositoryUrl' => config('hookroute.repository_url'),
-]))->name('home');
+Route::get('/', function (Request $request, RegistrationGate $registration) {
+    app()->setLocale('de');
 
-Route::get('/impressum', fn () => Inertia::render('Legal/Imprint', [
-    'repositoryUrl' => config('hookroute.repository_url'),
-]))->name('imprint');
+    return Inertia::render('Welcome', [
+        'canRegister' => $registration->allows($request),
+        'locale' => 'de',
+        'repositoryUrl' => config('hookroute.repository_url'),
+    ]);
+})->name('home');
 
-Route::get('/datenschutz', fn () => Inertia::render('Legal/Privacy', [
-    'repositoryUrl' => config('hookroute.repository_url'),
-]))->name('privacy');
+Route::get('/en', function (Request $request, RegistrationGate $registration) {
+    app()->setLocale('en');
+
+    return Inertia::render('Welcome', [
+        'canRegister' => $registration->allows($request),
+        'locale' => 'en',
+        'repositoryUrl' => config('hookroute.repository_url'),
+    ]);
+})->name('home.en');
+
+Route::get('/impressum', function () {
+    app()->setLocale('de');
+
+    return Inertia::render('Legal/Imprint', [
+        'repositoryUrl' => config('hookroute.repository_url'),
+    ]);
+})->name('imprint');
+
+Route::get('/datenschutz', function () {
+    app()->setLocale('de');
+
+    return Inertia::render('Legal/Privacy', [
+        'repositoryUrl' => config('hookroute.repository_url'),
+    ]);
+})->name('privacy');
 
 Route::match(['POST', 'PUT', 'PATCH'], '/hooks/{source:public_id}/{secret}', WebhookReceiverController::class)
     ->middleware('throttle:webhooks')
