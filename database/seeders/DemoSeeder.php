@@ -17,7 +17,7 @@ class DemoSeeder extends Seeder
     public function run(): void
     {
         $user = User::factory()->create([
-            'name' => 'Theo Buck',
+            'name' => 'Torben Buck',
             'email' => 'demo@hookroute.test',
             'password' => Hash::make('password'),
         ]);

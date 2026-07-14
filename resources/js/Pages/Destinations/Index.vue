@@ -1,8 +1,12 @@
 <script setup lang="ts">
+import AppSelect from '@/Components/App/AppSelect.vue';
+import ChoiceCards from '@/Components/App/ChoiceCards.vue';
 import Dialog from '@/Components/App/Dialog.vue';
 import PageHeader from '@/Components/App/PageHeader.vue';
+import ToggleSwitch from '@/Components/App/ToggleSwitch.vue';
 import AppShell from '@/Layouts/AppShell.vue';
 import { relativeDate } from '@/lib/format';
+import { browserTimezone, timezoneOptions } from '@/lib/timezones';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
@@ -38,7 +42,7 @@ const blank = () => ({
         recipients: [],
         send_time: '18:00',
         window_start_time: '08:00',
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        timezone: browserTimezone(),
         subject: 'Daily event digest',
         send_empty: false,
     },
@@ -105,6 +109,37 @@ const labels: Record<string, string> = {
     email: 'Immediate email',
     digest: 'Email digest',
 };
+const typeOptions = [
+    {
+        value: 'webhook',
+        label: 'HTTP webhook',
+        description: 'Send a signed HTTPS request',
+        icon: 'webhook',
+    },
+    {
+        value: 'discord',
+        label: 'Discord',
+        description: 'Post into a Discord channel',
+        icon: 'discord',
+    },
+    {
+        value: 'email',
+        label: 'Email',
+        description: 'Send every event immediately',
+        icon: 'email',
+    },
+    {
+        value: 'digest',
+        label: 'Email digest',
+        description: 'Collect events into a schedule',
+        icon: 'digest',
+    },
+];
+const methodOptions = ['POST', 'PUT', 'PATCH'].map((method) => ({
+    value: method,
+    label: method,
+}));
+const timezones = timezoneOptions();
 </script>
 <template>
     <Head title="Destinations" /><AppShell>
@@ -125,7 +160,15 @@ const labels: Record<string, string> = {
                 v-for="d in destinations"
                 :key="d.id"
                 class="resource-card"
+                :class="{ clickable: page.props.currentProject.can_manage }"
             >
+                <button
+                    v-if="page.props.currentProject.can_manage"
+                    type="button"
+                    class="card-click-target"
+                    :aria-label="`Edit ${d.name}`"
+                    @click="edit(d)"
+                />
                 <div class="resource-actions">
                     <span
                         class="status"
@@ -145,11 +188,9 @@ const labels: Record<string, string> = {
                     class="page-actions"
                     style="margin-top: 14px"
                 >
-                    <button class="btn btn-small btn-soft" @click="edit(d)">
-                        Edit</button
-                    ><button
+                    <button
                         class="btn btn-small btn-danger"
-                        @click="remove(d)"
+                        @click.stop="remove(d)"
                     >
                         Delete
                     </button>
@@ -175,9 +216,9 @@ const labels: Record<string, string> = {
             v-if="open"
             :title="editing ? 'Edit destination' : 'New destination'"
             @close="open = false"
-            ><form @submit.prevent="submit">
+            ><form autocomplete="off" @submit.prevent="submit">
                 <div class="form-grid">
-                    <div class="field">
+                    <div class="field full">
                         <label>Name</label
                         ><input
                             v-model="form.name"
@@ -189,20 +230,13 @@ const labels: Record<string, string> = {
                             {{ form.errors.name }}
                         </div>
                     </div>
-                    <div class="field">
+                    <div class="field full">
                         <label>Type</label
-                        ><select
+                        ><ChoiceCards
                             v-model="form.type"
-                            class="select"
+                            :options="typeOptions"
                             :disabled="!!editing"
-                        >
-                            <option value="webhook">HTTP webhook</option>
-                            <option value="discord">Discord</option>
-                            <option value="email">Immediate email</option>
-                            <option value="digest">
-                                Scheduled email digest
-                            </option>
-                        </select>
+                        />
                         <div v-if="form.errors.type" class="field-error">
                             {{ form.errors.type }}
                         </div>
@@ -213,6 +247,7 @@ const labels: Record<string, string> = {
                             ><input
                                 v-model="form.config.url"
                                 class="input"
+                                autocomplete="off"
                                 placeholder="https://example.com/webhooks"
                             />
                             <div
@@ -222,16 +257,13 @@ const labels: Record<string, string> = {
                                 {{ form.errors['config.url'] }}
                             </div>
                         </div>
-                        <div class="field">
+                        <div class="field full">
                             <label>Method</label
-                            ><select
+                            ><ChoiceCards
                                 v-model="form.config.method"
-                                class="select"
-                            >
-                                <option>POST</option>
-                                <option>PUT</option>
-                                <option>PATCH</option>
-                            </select>
+                                :options="methodOptions"
+                                compact
+                            />
                         </div>
                         <div class="field">
                             <label>Signing secret · optional</label
@@ -239,6 +271,7 @@ const labels: Record<string, string> = {
                                 v-model="form.config.signing_secret"
                                 class="input"
                                 type="password"
+                                autocomplete="new-password"
                                 :placeholder="
                                     editing
                                         ? 'Leave blank to keep current secret'
@@ -269,6 +302,7 @@ const labels: Record<string, string> = {
                                 v-model="form.config.url"
                                 class="input"
                                 type="password"
+                                autocomplete="new-password"
                                 placeholder="https://discord.com/api/webhooks/…"
                             />
                             <div
@@ -328,9 +362,10 @@ const labels: Record<string, string> = {
                         </div>
                         <div class="field">
                             <label>Timezone</label
-                            ><input
+                            ><AppSelect
                                 v-model="form.config.timezone"
-                                class="input"
+                                :options="timezones"
+                                searchable
                             />
                         </div>
                         <div class="field">
@@ -340,19 +375,20 @@ const labels: Record<string, string> = {
                                 class="input"
                             />
                         </div>
-                        <label class="check-row field full"
-                            ><input
+                        <div class="field full">
+                            <ToggleSwitch
                                 v-model="form.config.send_empty"
-                                type="checkbox"
-                            />
-                            Send a digest even when the window contains no
-                            events</label
-                        ></template
-                    >
-                    <label class="check-row field full"
-                        ><input v-model="form.enabled" type="checkbox" />
-                        Destination is active</label
-                    >
+                                label="Send empty digests"
+                                description="Send the scheduled email even when no event matched the window."
+                            /></div
+                    ></template>
+                    <div class="field full">
+                        <ToggleSwitch
+                            v-model="form.enabled"
+                            label="Destination is active"
+                            description="Paused destinations keep their configuration but receive no deliveries."
+                        />
+                    </div>
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn" @click="open = false">

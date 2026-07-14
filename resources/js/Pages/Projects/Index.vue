@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import AppSelect from '@/Components/App/AppSelect.vue';
 import Dialog from '@/Components/App/Dialog.vue';
 import PageHeader from '@/Components/App/PageHeader.vue';
 import AppShell from '@/Layouts/AppShell.vue';
+import { browserTimezone, timezoneOptions } from '@/lib/timezones';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
@@ -20,8 +22,9 @@ defineProps<{
 const open = ref(false);
 const form = useForm({
     name: '',
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    timezone: browserTimezone(),
 });
+const timezones = timezoneOptions();
 function submit() {
     form.post(route('projects.store'), {
         onSuccess: () => {
@@ -50,9 +53,7 @@ function submit() {
             >
                 <span class="resource-kind">{{ project.pivot.role }}</span>
                 <h3>{{ project.name }}</h3>
-                <p class="muted mono">
-                    {{ project.slug }} · {{ project.timezone }}
-                </p>
+                <p class="muted mono">{{ project.timezone }}</p>
                 <div class="resource-meta">
                     <span>{{ project.events_count }} events</span
                     ><span
@@ -89,10 +90,10 @@ function submit() {
                     </div>
                     <div class="field full">
                         <label>Timezone</label
-                        ><input
+                        ><AppSelect
                             v-model="form.timezone"
-                            class="input"
-                            placeholder="Europe/Berlin"
+                            :options="timezones"
+                            searchable
                         />
                         <div v-if="form.errors.timezone" class="field-error">
                             {{ form.errors.timezone }}

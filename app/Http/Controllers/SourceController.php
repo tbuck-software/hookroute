@@ -7,6 +7,7 @@ use App\Models\Source;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -39,7 +40,7 @@ class SourceController extends Controller
         $this->authorize('update', $project);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'signing_secret' => ['nullable', 'string', 'min:16', 'max:255'],
+            'signing_secret' => ['nullable', 'required_with:signature_header', 'string', 'min:16', 'max:255'],
             'signature_header' => ['nullable', 'required_with:signing_secret', 'string', 'max:100'],
         ]);
         $secret = Str::random(48);
@@ -65,11 +66,17 @@ class SourceController extends Controller
     {
         $this->authorize('update', $project);
         $this->belongsTo($project, $source);
+        $keepsExistingSecret = ! $request->boolean('clear_signing_secret')
+            && filled($source->signing_secret);
+        $requiresSignatureHeader = $keepsExistingSecret || filled($request->input('signing_secret'));
+        $requiresSigningSecret = ! $keepsExistingSecret
+            && ! $request->boolean('clear_signing_secret')
+            && filled($request->input('signature_header'));
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'enabled' => ['required', 'boolean'],
-            'signing_secret' => ['nullable', 'string', 'min:16', 'max:255'],
-            'signature_header' => ['nullable', 'required_with:signing_secret', 'string', 'max:100'],
+            'signing_secret' => ['nullable', Rule::requiredIf($requiresSigningSecret), 'string', 'min:16', 'max:255'],
+            'signature_header' => ['nullable', Rule::requiredIf($requiresSignatureHeader), 'string', 'max:100'],
             'clear_signing_secret' => ['sometimes', 'boolean'],
         ]);
         if ($data['clear_signing_secret'] ?? false) {

@@ -39,6 +39,63 @@ it('does not expose source secrets to read only members', function () {
             ->where('currentProject.can_manage', false));
 });
 
+it('requires a signature header while an existing source hmac secret is retained', function () {
+    $owner = User::factory()->create();
+    $project = Project::factory()->for($owner, 'owner')->create();
+    $project->members()->attach($owner, ['role' => 'owner']);
+    $source = Source::factory()->for($project)->create([
+        'signing_secret' => 'inbound-signing-secret',
+        'signature_header' => 'X-Hookroute-Signature',
+    ]);
+
+    $this->actingAs($owner)
+        ->patch(route('projects.sources.update', [$project, $source]), [
+            'name' => $source->name,
+            'enabled' => true,
+            'signing_secret' => '',
+            'signature_header' => '',
+            'clear_signing_secret' => false,
+        ])
+        ->assertSessionHasErrors('signature_header');
+
+    $this->actingAs($owner)
+        ->patch(route('projects.sources.update', [$project, $source]), [
+            'name' => $source->name,
+            'enabled' => true,
+            'signing_secret' => '',
+            'signature_header' => '',
+            'clear_signing_secret' => true,
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($source->fresh()->signing_secret)->toBeNull()
+        ->and($source->fresh()->signature_header)->toBeNull();
+});
+
+it('requires source hmac settings to be configured as a pair', function () {
+    $owner = User::factory()->create();
+    $project = Project::factory()->for($owner, 'owner')->create();
+    $project->members()->attach($owner, ['role' => 'owner']);
+
+    $this->actingAs($owner)
+        ->post(route('projects.sources.store', $project), [
+            'name' => 'Incomplete source',
+            'signing_secret' => '',
+            'signature_header' => 'X-Signature',
+        ])
+        ->assertSessionHasErrors('signing_secret');
+
+    $this->actingAs($owner)
+        ->post(route('projects.sources.store', $project), [
+            'name' => 'Incomplete source',
+            'signing_secret' => 'inbound-signing-secret',
+            'signature_header' => '',
+        ])
+        ->assertSessionHasErrors('signature_header');
+
+    expect($project->sources()->count())->toBe(0);
+});
+
 it('does not expose destination credentials or recipient addresses to read only members', function () {
     $owner = User::factory()->create();
     $member = User::factory()->create();

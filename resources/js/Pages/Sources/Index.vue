@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import Dialog from '@/Components/App/Dialog.vue';
 import PageHeader from '@/Components/App/PageHeader.vue';
+import ToggleSwitch from '@/Components/App/ToggleSwitch.vue';
 import AppShell from '@/Layouts/AppShell.vue';
 import { relativeDate } from '@/lib/format';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
 interface Source {
     id: string;
@@ -26,6 +27,7 @@ const page = usePage<any>();
 const open = ref(false);
 const editing = ref<Source | null>(null);
 const copied = ref<string | null>(null);
+const hmacEnabled = ref(false);
 const form = useForm({
     name: '',
     enabled: true,
@@ -39,6 +41,7 @@ function add() {
     form.name = '';
     form.enabled = true;
     form.signature_header = 'X-Hookroute-Signature';
+    hmacEnabled.value = false;
     open.value = true;
 }
 function edit(source: Source) {
@@ -48,9 +51,17 @@ function edit(source: Source) {
     form.signing_secret = '';
     form.signature_header = source.signature_header || 'X-Hookroute-Signature';
     form.clear_signing_secret = false;
+    hmacEnabled.value = source.has_signing_secret;
     open.value = true;
 }
 function submit() {
+    form.clear_signing_secret = Boolean(
+        editing.value?.has_signing_secret && !hmacEnabled.value,
+    );
+    if (!hmacEnabled.value) {
+        form.signing_secret = '';
+        form.signature_header = '';
+    }
     const options = {
         preserveScroll: true,
         onSuccess: () => {
@@ -71,6 +82,11 @@ function submit() {
               options,
           );
 }
+watch(hmacEnabled, (enabled) => {
+    if (enabled && !form.signature_header) {
+        form.signature_header = 'X-Hookroute-Signature';
+    }
+});
 async function copy(source: Source) {
     if (!source.webhook_url) return;
     await navigator.clipboard.writeText(source.webhook_url);
@@ -127,7 +143,15 @@ function remove(source: Source) {
                 v-for="source in sources"
                 :key="source.id"
                 class="resource-card"
+                :class="{ clickable: page.props.currentProject.can_manage }"
             >
+                <button
+                    v-if="page.props.currentProject.can_manage"
+                    type="button"
+                    class="card-click-target"
+                    :aria-label="`Edit ${source.name}`"
+                    @click="edit(source)"
+                />
                 <div class="resource-actions">
                     <span
                         class="status"
@@ -146,7 +170,7 @@ function remove(source: Source) {
                     ><button
                         v-if="source.webhook_url"
                         class="btn btn-small"
-                        @click="copy(source)"
+                        @click.stop="copy(source)"
                     >
                         {{ copied === source.id ? 'Copied' : 'Copy' }}
                     </button>
@@ -164,22 +188,17 @@ function remove(source: Source) {
                 >
                     <button
                         class="btn btn-small btn-soft"
-                        @click="edit(source)"
-                    >
-                        Edit</button
-                    ><button
-                        class="btn btn-small btn-soft"
-                        @click="toggle(source)"
+                        @click.stop="toggle(source)"
                     >
                         {{ source.enabled ? 'Pause' : 'Resume' }}</button
                     ><button
                         class="btn btn-small btn-soft"
-                        @click="rotate(source)"
+                        @click.stop="rotate(source)"
                     >
                         Rotate URL</button
                     ><button
                         class="btn btn-small btn-danger"
-                        @click="remove(source)"
+                        @click.stop="remove(source)"
                     >
                         Delete
                     </button>
@@ -205,7 +224,7 @@ function remove(source: Source) {
             v-if="open"
             :title="editing ? 'Edit source' : 'Create a source'"
             @close="open = false"
-            ><form @submit.prevent="submit">
+            ><form autocomplete="off" @submit.prevent="submit">
                 <div class="form-grid">
                     <div class="field full">
                         <label>Source name</label
@@ -219,51 +238,56 @@ function remove(source: Source) {
                             {{ form.errors.name }}
                         </div>
                     </div>
-                    <div class="field">
-                        <label>HMAC secret · optional</label
-                        ><input
-                            v-model="form.signing_secret"
-                            type="password"
-                            class="input"
-                            :placeholder="
-                                editing && editing.has_signing_secret
-                                    ? 'Leave blank to keep current secret'
-                                    : 'At least 16 characters'
-                            "
+                    <div class="field full">
+                        <ToggleSwitch
+                            v-model="hmacEnabled"
+                            label="Verify requests with HMAC"
+                            description="Require an HMAC-SHA256 signature over the exact raw request body."
                         />
-                        <div class="field-hint">
-                            Requests must carry an HMAC-SHA256 of the exact raw
-                            body.
-                        </div>
-                        <div
-                            v-if="form.errors.signing_secret"
-                            class="field-error"
-                        >
-                            {{ form.errors.signing_secret }}
-                        </div>
                     </div>
-                    <div class="field">
-                        <label>Signature header</label
-                        ><input v-model="form.signature_header" class="input" />
-                        <div
-                            v-if="form.errors.signature_header"
-                            class="field-error"
-                        >
-                            {{ form.errors.signature_header }}
+                    <template v-if="hmacEnabled">
+                        <div class="field">
+                            <label>Signature header · key</label
+                            ><input
+                                v-model="form.signature_header"
+                                class="input"
+                                placeholder="X-Hookroute-Signature"
+                            />
+                            <div
+                                v-if="form.errors.signature_header"
+                                class="field-error"
+                            >
+                                {{ form.errors.signature_header }}
+                            </div>
                         </div>
-                    </div>
-                    <label
-                        v-if="editing?.has_signing_secret"
-                        class="check-row field full"
-                        ><input
-                            v-model="form.clear_signing_secret"
-                            type="checkbox"
+                        <div class="field">
+                            <label>HMAC secret · value</label
+                            ><input
+                                v-model="form.signing_secret"
+                                type="password"
+                                class="input"
+                                autocomplete="new-password"
+                                :placeholder="
+                                    editing && editing.has_signing_secret
+                                        ? 'Leave blank to keep current secret'
+                                        : 'At least 16 characters'
+                                "
+                            />
+                            <div
+                                v-if="form.errors.signing_secret"
+                                class="field-error"
+                            >
+                                {{ form.errors.signing_secret }}
+                            </div>
+                        </div>
+                    </template>
+                    <div v-if="editing" class="field full">
+                        <ToggleSwitch
+                            v-model="form.enabled"
+                            label="Source is active"
+                            description="Paused sources reject incoming requests without deleting their URL."
                         />
-                        Remove existing HMAC verification</label
-                    ><label v-if="editing" class="check-row field full"
-                        ><input v-model="form.enabled" type="checkbox" /> Source
-                        is active</label
-                    >
+                    </div>
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn" @click="open = false">

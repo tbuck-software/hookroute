@@ -47,6 +47,7 @@ class RegisteredUserController extends Controller
                 ...($invitation ? [Rule::in([strtolower($invitation->email)])] : []),
             ],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'timezone' => ['nullable', 'timezone'],
         ]);
 
         $user = DB::transaction(function () use ($request, $invitation) {
@@ -65,7 +66,7 @@ class RegisteredUserController extends Controller
                 'owner_id' => $user->id,
                 'name' => $user->name."'s project",
                 'slug' => $slug,
-                'timezone' => config('app.timezone'),
+                'timezone' => $request->input('timezone') ?: 'Europe/Berlin',
             ]);
             $project->members()->attach($user, ['role' => 'owner']);
 

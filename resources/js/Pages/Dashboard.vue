@@ -64,7 +64,7 @@ defineProps<{
                 <div class="metric-note">failed deliveries</div>
             </article>
         </section>
-        <section class="dashboard-grid">
+        <section>
             <div class="panel">
                 <header class="panel-head">
                     <h2>Latest event stream</h2>
@@ -121,38 +121,6 @@ defineProps<{
                     >
                 </div>
             </div>
-            <aside class="stack">
-                <div class="panel">
-                    <header class="panel-head">
-                        <h2>Runtime model</h2>
-                        <span class="status delivered">cron ready</span>
-                    </header>
-                    <div class="panel-body">
-                        <p
-                            class="muted"
-                            style="
-                                margin-top: 0;
-                                font-size: 13px;
-                                line-height: 1.6;
-                            "
-                        >
-                            One scheduler call per minute dispatches due digests
-                            and drains queued deliveries. No Redis or resident
-                            worker required.
-                        </p>
-                        <pre class="code-block">
-* * * * * php artisan schedule:run</pre>
-                    </div>
-                </div>
-                <div class="panel">
-                    <header class="panel-head"><h2>Routing order</h2></header>
-                    <div class="panel-body mono" style="line-height: 2.1">
-                        01 · authenticate source<br />02 · persist raw event<br />03
-                        · evaluate filters<br />04 · enqueue fan-out<br />05 ·
-                        retry independently
-                    </div>
-                </div>
-            </aside>
         </section>
     </AppShell>
 </template>

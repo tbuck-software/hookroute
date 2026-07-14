@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import AppSelect from '@/Components/App/AppSelect.vue';
+import ChoiceCards from '@/Components/App/ChoiceCards.vue';
 import Dialog from '@/Components/App/Dialog.vue';
 import PageHeader from '@/Components/App/PageHeader.vue';
+import ToggleSwitch from '@/Components/App/ToggleSwitch.vue';
 import AppShell from '@/Layouts/AppShell.vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 interface Filter {
     field: string;
     operator: string;
@@ -87,6 +90,50 @@ const typeLabel: Record<string, string> = {
     email: 'Email',
     digest: 'Digest',
 };
+const typeIcon: Record<string, string> = {
+    webhook: 'webhook',
+    discord: 'discord',
+    email: 'email',
+    digest: 'digest',
+};
+const sourceOptions = computed(() =>
+    props.sources.map((source) => ({
+        value: source.id,
+        label: source.name,
+        icon: 'source',
+    })),
+);
+const destinationOptions = computed(() =>
+    props.destinations.map((destination) => ({
+        value: destination.id,
+        label: destination.name,
+        description: typeLabel[destination.type],
+        icon: typeIcon[destination.type],
+    })),
+);
+const payloadOptions = [
+    {
+        value: 'passthrough',
+        label: 'Pass through',
+        description: 'Forward the original request body unchanged',
+        icon: 'route',
+    },
+    {
+        value: 'template',
+        label: 'Template',
+        description: 'Render a destination-specific message',
+        icon: 'event',
+    },
+];
+const operatorOptions = [
+    { value: 'equals', label: 'equals' },
+    { value: 'not_equals', label: 'does not equal' },
+    { value: 'contains', label: 'contains' },
+    { value: 'exists', label: 'exists' },
+    { value: 'not_exists', label: 'does not exist' },
+    { value: 'greater_than', label: 'greater than' },
+    { value: 'less_than', label: 'less than' },
+];
 </script>
 <template>
     <Head title="Routes" /><AppShell
@@ -120,7 +167,21 @@ const typeLabel: Record<string, string> = {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="c in connections" :key="c.id">
+                    <tr
+                        v-for="c in connections"
+                        :key="c.id"
+                        :class="{
+                            'row-clickable':
+                                page.props.currentProject.can_manage,
+                        }"
+                        :tabindex="
+                            page.props.currentProject.can_manage ? 0 : undefined
+                        "
+                        @click="page.props.currentProject.can_manage && edit(c)"
+                        @keydown.enter="
+                            page.props.currentProject.can_manage && edit(c)
+                        "
+                    >
                         <td>
                             <strong>{{ c.name }}</strong>
                             <div class="mono muted">{{ c.payload_mode }}</div>
@@ -147,13 +208,8 @@ const typeLabel: Record<string, string> = {
                                 class="table-actions"
                             >
                                 <button
-                                    class="btn btn-small btn-soft"
-                                    @click="edit(c)"
-                                >
-                                    Edit</button
-                                ><button
                                     class="btn btn-small btn-danger"
-                                    @click="remove(c)"
+                                    @click.stop="remove(c)"
                                 >
                                     Delete
                                 </button>
@@ -206,38 +262,24 @@ const typeLabel: Record<string, string> = {
                     </div>
                     <div class="field">
                         <label>Source</label
-                        ><select v-model="form.source_id" class="select">
-                            <option
-                                v-for="s in sources"
-                                :key="s.id"
-                                :value="s.id"
-                            >
-                                {{ s.name }}
-                            </option>
-                        </select>
+                        ><AppSelect
+                            v-model="form.source_id"
+                            :options="sourceOptions"
+                        />
                     </div>
                     <div class="field">
                         <label>Destination</label
-                        ><select v-model="form.destination_id" class="select">
-                            <option
-                                v-for="d in destinations"
-                                :key="d.id"
-                                :value="d.id"
-                            >
-                                {{ d.name }} · {{ typeLabel[d.type] }}
-                            </option>
-                        </select>
+                        ><AppSelect
+                            v-model="form.destination_id"
+                            :options="destinationOptions"
+                        />
                     </div>
                     <div class="field full">
                         <label>Payload mode</label
-                        ><select v-model="form.payload_mode" class="select">
-                            <option value="passthrough">
-                                Pass through raw request body
-                            </option>
-                            <option value="template">
-                                Render a route template
-                            </option>
-                        </select>
+                        ><ChoiceCards
+                            v-model="form.payload_mode"
+                            :options="payloadOptions"
+                        />
                     </div>
                     <template v-if="form.payload_mode === 'template'"
                         ><div class="field full">
@@ -296,23 +338,11 @@ const typeLabel: Record<string, string> = {
                                 v-model="filter.field"
                                 class="input"
                                 placeholder="order.status"
-                            /><select v-model="filter.operator" class="select">
-                                <option value="equals">equals</option>
-                                <option value="not_equals">
-                                    does not equal
-                                </option>
-                                <option value="contains">contains</option>
-                                <option value="exists">exists</option>
-                                <option value="not_exists">
-                                    does not exist
-                                </option>
-                                <option value="greater_than">
-                                    greater than
-                                </option>
-                                <option value="less_than">
-                                    less than
-                                </option></select
-                            ><input
+                            /><AppSelect
+                                v-model="filter.operator"
+                                :options="operatorOptions"
+                                compact
+                            /><input
                                 v-if="
                                     !['exists', 'not_exists'].includes(
                                         filter.operator,
@@ -331,10 +361,13 @@ const typeLabel: Record<string, string> = {
                             </button>
                         </div>
                     </div>
-                    <label class="check-row field full"
-                        ><input v-model="form.enabled" type="checkbox" /> Route
-                        is active</label
-                    >
+                    <div class="field full">
+                        <ToggleSwitch
+                            v-model="form.enabled"
+                            label="Route is active"
+                            description="Paused routes stop matching new events without losing filters or templates."
+                        />
+                    </div>
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn" @click="open = false">

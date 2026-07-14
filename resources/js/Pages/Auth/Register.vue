@@ -4,6 +4,7 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
+import { browserTimezone } from '@/lib/timezones';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 
 const form = useForm({
@@ -11,6 +12,7 @@ const form = useForm({
     email: '',
     password: '',
     password_confirmation: '',
+    timezone: browserTimezone(),
 });
 
 const submit = () => {

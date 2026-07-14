@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import AppSelect from '@/Components/App/AppSelect.vue';
+import ChoiceCards from '@/Components/App/ChoiceCards.vue';
 import Dialog from '@/Components/App/Dialog.vue';
 import PageHeader from '@/Components/App/PageHeader.vue';
 import AppShell from '@/Layouts/AppShell.vue';
 import { formatDate } from '@/lib/format';
+import { timezoneOptions } from '@/lib/timezones';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 const props = defineProps<{
@@ -19,6 +22,26 @@ const settings = useForm({
     timezone: props.project.timezone,
     event_retention_days: props.project.event_retention_days,
 });
+const roles = [
+    {
+        value: 'member',
+        label: 'Member',
+        description: 'Inspect events and delivery status',
+        icon: 'user',
+    },
+    {
+        value: 'admin',
+        label: 'Administrator',
+        description: 'Manage routing and team access',
+        icon: 'shield',
+    },
+];
+const timezones = timezoneOptions();
+const retentionOptions = [1, 7, 14, 30, 60, 90].map((days) => ({
+    value: days,
+    label: `${days} ${days === 1 ? 'day' : 'days'}`,
+    icon: 'clock',
+}));
 function sendInvite() {
     invite.post(route('projects.team.invite', props.project.slug), {
         onSuccess: () => {
@@ -121,28 +144,15 @@ function deleteProject() {
                                         "
                                         class="table-actions"
                                     >
-                                        <select
-                                            :value="m.role"
-                                            class="select"
-                                            style="
-                                                width: 110px;
-                                                min-height: 32px;
-                                                padding: 4px 8px;
+                                        <AppSelect
+                                            :model-value="m.role"
+                                            :options="roles"
+                                            compact
+                                            style="width: 140px"
+                                            @update:model-value="
+                                                setRole(m, String($event))
                                             "
-                                            @change="
-                                                setRole(
-                                                    m,
-                                                    (
-                                                        $event.target as HTMLSelectElement
-                                                    ).value,
-                                                )
-                                            "
-                                        >
-                                            <option value="admin">Admin</option>
-                                            <option value="member">
-                                                Member
-                                            </option></select
-                                        ><button
+                                        /><button
                                             class="btn btn-small btn-danger"
                                             @click="remove(m)"
                                         >
@@ -165,8 +175,8 @@ function deleteProject() {
                     </table>
                 </div>
             </section>
-            <aside class="stack">
-                <div v-if="page.props.currentProject.can_manage" class="panel">
+            <aside v-if="page.props.currentProject.can_manage" class="stack">
+                <div class="panel">
                     <header class="panel-head">
                         <h2>Pending invitations</h2>
                     </header>
@@ -196,24 +206,6 @@ function deleteProject() {
                         No outstanding invitations.
                     </div>
                 </div>
-                <div class="panel">
-                    <header class="panel-head"><h2>Role model</h2></header>
-                    <div
-                        class="panel-body muted"
-                        style="font-size: 12px; line-height: 1.8"
-                    >
-                        <strong style="color: var(--ink)">Owner</strong> ·
-                        project and team control<br /><strong
-                            style="color: var(--ink)"
-                            >Admin</strong
-                        >
-                        · routing and team control<br /><strong
-                            style="color: var(--ink)"
-                            >Member</strong
-                        >
-                        · read-only operations access
-                    </div>
-                </div>
             </aside>
         </div>
         <Dialog
@@ -237,14 +229,7 @@ function deleteProject() {
                     </div>
                     <div class="field full">
                         <label>Role</label
-                        ><select v-model="invite.role" class="select">
-                            <option value="member">
-                                Member · inspect only
-                            </option>
-                            <option value="admin">
-                                Administrator · manage routing
-                            </option>
-                        </select>
+                        ><ChoiceCards v-model="invite.role" :options="roles" />
                     </div>
                 </div>
                 <div class="form-actions">
@@ -275,22 +260,18 @@ function deleteProject() {
                     </div>
                     <div class="field">
                         <label>Timezone</label
-                        ><input v-model="settings.timezone" class="input" />
+                        ><AppSelect
+                            v-model="settings.timezone"
+                            :options="timezones"
+                            searchable
+                        />
                     </div>
                     <div class="field">
                         <label>Event retention</label
-                        ><select
+                        ><AppSelect
                             v-model="settings.event_retention_days"
-                            class="select"
-                        >
-                            <option
-                                v-for="n in [1, 7, 14, 30, 60, 90]"
-                                :key="n"
-                                :value="n"
-                            >
-                                {{ n }} days
-                            </option>
-                        </select>
+                            :options="retentionOptions"
+                        />
                     </div>
                     <div
                         v-for="(error, field) in settings.errors"

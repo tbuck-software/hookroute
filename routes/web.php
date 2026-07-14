@@ -17,7 +17,16 @@ use Inertia\Inertia;
 
 Route::get('/', fn (Request $request, RegistrationGate $registration) => Inertia::render('Welcome', [
     'canRegister' => $registration->allows($request),
+    'repositoryUrl' => config('hookroute.repository_url'),
 ]))->name('home');
+
+Route::get('/impressum', fn () => Inertia::render('Legal/Imprint', [
+    'repositoryUrl' => config('hookroute.repository_url'),
+]))->name('imprint');
+
+Route::get('/datenschutz', fn () => Inertia::render('Legal/Privacy', [
+    'repositoryUrl' => config('hookroute.repository_url'),
+]))->name('privacy');
 
 Route::match(['POST', 'PUT', 'PATCH'], '/hooks/{source:public_id}/{secret}', WebhookReceiverController::class)
     ->middleware('throttle:webhooks')

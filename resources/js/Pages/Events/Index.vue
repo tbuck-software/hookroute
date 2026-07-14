@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import AppSelect from '@/Components/App/AppSelect.vue';
 import PageHeader from '@/Components/App/PageHeader.vue';
 import AppShell from '@/Layouts/AppShell.vue';
 import { relativeDate } from '@/lib/format';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { reactive } from 'vue';
+import { computed, reactive } from 'vue';
 interface EventRow {
     id: string;
     source: { id: number; name: string };
@@ -21,7 +22,7 @@ const props = defineProps<{
     sources: Array<{ id: number; name: string }>;
     filters: { source?: string; status?: string };
 }>();
-const filter = reactive({
+const filter = reactive<{ source: string | number; status: string }>({
     source: props.filters.source || '',
     status: props.filters.status || '',
 });
@@ -34,6 +35,24 @@ function apply() {
 function count(e: EventRow, s: string) {
     return e.delivery_counts?.[s] || 0;
 }
+function show(e: EventRow) {
+    router.visit(route('projects.events.show', [props.project.slug, e.id]));
+}
+const sourceOptions = computed(() => [
+    { value: '', label: 'All sources', icon: 'source' },
+    ...props.sources.map((source) => ({
+        value: source.id,
+        label: source.name,
+        icon: 'source',
+    })),
+]);
+const statusOptions = [
+    { value: '', label: 'Any state', icon: 'event' },
+    { value: 'delivered', label: 'Delivered', icon: 'check' },
+    { value: 'retrying', label: 'Retrying', icon: 'clock' },
+    { value: 'failed', label: 'Failed', icon: 'event' },
+    { value: 'pending', label: 'Pending', icon: 'clock' },
+];
 </script>
 <template>
     <Head title="Events" /><AppShell
@@ -46,30 +65,19 @@ function count(e: EventRow, s: string) {
             <div class="panel-body form-grid">
                 <div class="field">
                     <label>Source</label
-                    ><select
+                    ><AppSelect
                         v-model="filter.source"
-                        class="select"
-                        @change="apply"
-                    >
-                        <option value="">All sources</option>
-                        <option v-for="s in sources" :key="s.id" :value="s.id">
-                            {{ s.name }}
-                        </option>
-                    </select>
+                        :options="sourceOptions"
+                        @update:model-value="apply"
+                    />
                 </div>
                 <div class="field">
                     <label>Delivery state</label
-                    ><select
+                    ><AppSelect
                         v-model="filter.status"
-                        class="select"
-                        @change="apply"
-                    >
-                        <option value="">Any state</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="retrying">Retrying</option>
-                        <option value="failed">Failed</option>
-                        <option value="pending">Pending</option>
-                    </select>
+                        :options="statusOptions"
+                        @update:model-value="apply"
+                    />
                 </div>
             </div>
         </div>
@@ -84,7 +92,14 @@ function count(e: EventRow, s: string) {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="e in events.data" :key="e.id">
+                    <tr
+                        v-for="e in events.data"
+                        :key="e.id"
+                        class="row-clickable"
+                        tabindex="0"
+                        @click="show(e)"
+                        @keydown.enter="show(e)"
+                    >
                         <td style="white-space: nowrap">
                             <strong>{{ relativeDate(e.received_at) }}</strong>
                             <div class="mono muted">
@@ -92,29 +107,13 @@ function count(e: EventRow, s: string) {
                             </div>
                         </td>
                         <td>
-                            <Link
-                                :href="
-                                    route('projects.events.show', [
-                                        project.slug,
-                                        e.id,
-                                    ])
-                                "
-                                ><strong>{{ e.source.name }}</strong>
-                                <div class="mono muted">{{ e.id }}</div></Link
-                            >
+                            <strong>{{ e.source.name }}</strong>
+                            <div class="mono muted">{{ e.id }}</div>
                         </td>
                         <td class="mono muted">
-                            <Link
-                                :href="
-                                    route('projects.events.show', [
-                                        project.slug,
-                                        e.id,
-                                    ])
-                                "
-                                ><div style="max-width: 520px" class="truncate">
-                                    {{ e.payload_preview }}
-                                </div></Link
-                            >
+                            <div style="max-width: 520px" class="truncate">
+                                {{ e.payload_preview }}
+                            </div>
                         </td>
                         <td>
                             <div class="page-actions">
@@ -165,3 +164,4 @@ function count(e: EventRow, s: string) {
         </div>
     </AppShell>
 </template>
+import AppSelect from '@/Components/App/AppSelect.vue';

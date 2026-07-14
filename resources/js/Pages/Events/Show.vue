@@ -3,7 +3,7 @@ import PageHeader from '@/Components/App/PageHeader.vue';
 import StatusBadge from '@/Components/App/StatusBadge.vue';
 import AppShell from '@/Layouts/AppShell.vue';
 import { formatDate } from '@/lib/format';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 const props = defineProps<{ project: { slug: string }; event: any }>();
 const page = usePage<any>();
 function replay(d: any) {
@@ -25,12 +25,7 @@ const pretty = (v: any) => JSON.stringify(v, null, 2);
             :eyebrow="event.source.name"
             :title="event.public_id"
             :description="`Received ${formatDate(event.received_at)} · ${event.method} · ${event.content_type || 'unknown content type'}`"
-            ><Link
-                :href="route('projects.events.index', project.slug)"
-                class="btn btn-soft"
-                >← Event stream</Link
-            ></PageHeader
-        >
+        />
         <div class="detail-grid">
             <section class="stack">
                 <div class="panel">
@@ -145,17 +140,6 @@ const pretty = (v: any) => JSON.stringify(v, null, 2);
                         style="font-size: 12px"
                     >
                         No active route matched this payload.
-                    </div>
-                </div>
-                <div class="panel">
-                    <header class="panel-head">
-                        <h2>Capture metadata</h2>
-                    </header>
-                    <div class="panel-body mono" style="line-height: 2">
-                        Source · {{ event.source.name }}<br />Method ·
-                        {{ event.method }}<br />Content ·
-                        {{ event.content_type || '—' }}<br />Idempotency ·
-                        {{ event.idempotency_key || '—' }}
                     </div>
                 </div>
             </aside>
