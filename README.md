@@ -42,10 +42,10 @@ The application is available at `http://localhost`; Mailpit is available at `htt
 
 The development seed creates `demo@hookroute.test` with password `password` and a populated example project.
 
-The public landing page includes the product model, feature overview, fixed-price setup offer, contact details, imprint, and privacy information. Once the public repository exists, set its canonical URL to enable every GitHub call to action:
+The public landing page includes the product model, feature overview, fixed-price setup offer, contact details, imprint, and privacy information. The canonical repository URL enables its GitHub calls to action and can be overridden for a fork:
 
 ```dotenv
-HOOKROUTE_REPOSITORY_URL=https://github.com/Rasalas/hookroute
+HOOKROUTE_REPOSITORY_URL=https://github.com/tbuck-software/hookroute
 ```
 
 Run the scheduler during development in a second terminal so database-queued deliveries and digests are processed:

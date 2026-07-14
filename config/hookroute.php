@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'repository_url' => env('HOOKROUTE_REPOSITORY_URL'),
+    'repository_url' => env('HOOKROUTE_REPOSITORY_URL', 'https://github.com/tbuck-software/hookroute'),
     'max_payload_bytes' => (int) env('HOOKROUTE_MAX_PAYLOAD_BYTES', 1_048_576),
     'allow_private_destinations' => (bool) env('HOOKROUTE_ALLOW_PRIVATE_DESTINATIONS', false),
     'delivery_timeout_seconds' => (int) env('HOOKROUTE_DELIVERY_TIMEOUT', 10),

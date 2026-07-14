@@ -3,6 +3,7 @@
     "name": "tbuck/hookroute",
     "type": "project",
     "description": "A focused, self-hosted webhook gateway for routing, delivery, replay, and email digests.",
+    "homepage": "https://github.com/tbuck-software/hookroute",
     "keywords": [
         "laravel",
         "webhooks",
@@ -10,6 +11,10 @@
         "self-hosted"
     ],
     "license": "MIT",
+    "support": {
+        "issues": "https://github.com/tbuck-software/hookroute/issues",
+        "source": "https://github.com/tbuck-software/hookroute"
+    },
     "require": {
         "php": "^8.3",
         "ext-curl": "*",
