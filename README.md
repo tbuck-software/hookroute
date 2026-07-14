@@ -1,58 +1,131 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Hookroute
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Hookroute is a focused, self-hosted webhook gateway. It captures inbound requests, evaluates project-owned routes, and delivers each matching event independently to HTTP, Discord, immediate email, or a scheduled email digest.
 
-## About Laravel
+It is deliberately smaller than a general workflow engine and can run on ordinary PHP/MySQL hosting with one cron entry—no Redis, Docker, or resident process is required.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Capabilities
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- Multiple users, shared projects, invitations, and owner/admin/member roles
+- Ownership transfer and invitation-only registration after the first account
+- Secret source URLs plus optional HMAC-SHA256 verification
+- Redacted raw request capture and idempotency-key handling
+- Fan-out with payload filters and per-route templates
+- HTTPS webhooks with static headers and optional outbound HMAC signing
+- Discord delivery with mentions disabled by default
+- Immediate email and daily email digest windows
+- Database-backed retries with exponential backoff
+- Delivery response excerpts, errors, and one-click replay
+- Per-project event retention
+- SQLite for a small installation; MySQL for shared hosting
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Requirements
 
-## Learning Laravel
+- Docker Desktop or another Docker Compose compatible runtime
+- Composer 2 for the initial dependency install
+- The included Laravel Sail environment provides PHP 8.4, MySQL 8.0, Node.js, and Mailpit
+- A cron facility that can run every minute
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Local development with Sail
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+cp .env.example .env
+sail up -d
+sail artisan key:generate
+sail artisan migrate --seed
+sail npm install
+sail npm run build
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+The application is available at `http://localhost`; Mailpit is available at `http://localhost:8025`.
 
-## Contributing
+The development seed creates `demo@hookroute.test` with password `password` and a populated example project.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Run the scheduler during development in a second terminal so database-queued deliveries and digests are processed:
 
-## Code of Conduct
+```bash
+sail artisan schedule:work
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+This repository includes Sail's `laravel.test`, MySQL, and Mailpit services. If your shell alias points to `vendor/bin/sail`, all commands above work as written. Use `sail down` to stop the environment and `sail down -v` only when the local MySQL volume should also be deleted.
 
-## Security Vulnerabilities
+## Shared-hosting deployment
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+1. Point the domain document root at the project's `public/` directory.
+2. Configure `.env` with `APP_ENV=production`, `APP_DEBUG=false`, the canonical HTTPS `APP_URL`, `SESSION_SECURE_COOKIE=true`, MySQL credentials, and SMTP credentials.
+3. Keep `QUEUE_CONNECTION=database`, `SESSION_DRIVER=database`, and `CACHE_STORE=database`.
+4. Run `composer install --no-dev --optimize-autoloader`, `php artisan migrate --force`, and `php artisan optimize`.
+5. Build assets locally with `npm ci && npm run build` if Node is unavailable on the host, then upload `public/build/`.
+6. Make `storage/` and `bootstrap/cache/` writable by PHP.
+7. Add one cron entry:
+
+```cron
+* * * * * cd /absolute/path/to/hookroute && php artisan schedule:run >> /dev/null 2>&1
+```
+
+That scheduler creates due digests, drains the database delivery queue for up to 50 seconds, and prunes expired event history.
+
+If `DB_QUEUE_RETRY_AFTER` is customized, keep it greater than both processing leases and job timeouts. The shipped 90-second queue retry window is paired with 30/60-second job timeouts and 45/75-second delivery/digest leases.
+
+The first account can register without an invitation. Afterwards, new accounts require a valid project invitation unless `HOOKROUTE_ALLOW_PUBLIC_REGISTRATION=true` is set deliberately.
+
+## Webhook ingress
+
+Create a source in the UI and send a request to its generated URL:
+
+```bash
+curl -X POST 'https://webhook.example.com/hooks/{source}/{secret}' \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: order-1842-created' \
+  -d '{"event":"order.created","order":{"id":1842}}'
+```
+
+When source HMAC verification is enabled, sign the exact raw request body with the configured secret and send the hex digest as either `sha256={digest}` or `{digest}` in the configured header.
+
+## Route templates
+
+Templates can reference the following roots:
+
+- `payload.*` — parsed inbound JSON or form fields
+- `event.id`, `event.received_at`
+- `source.id`, `source.name`
+- `project.name`, `project.slug`
+
+Example HTTP JSON template:
+
+```json
+{
+  "event_id": "{{ event.id }}",
+  "order_id": {{ payload.order.id }},
+  "source": "{{ source.name }}"
+}
+```
+
+The `passthrough` mode instead forwards the captured raw body and its original content type.
+
+## Security model
+
+- Source and destination secrets are encrypted at rest with `APP_KEY`.
+- Read-only members cannot retrieve source URLs or destination credentials.
+- Sensitive inbound headers are discarded rather than persisted.
+- Outbound URLs must use HTTPS, resolve only to public IP space, and are pinned to the validated address for the connection unless `HOOKROUTE_ALLOW_PRIVATE_DESTINATIONS=true` is explicitly configured.
+- Redirects are disabled for outbound delivery and Discord mentions are suppressed.
+- Destination response downloads and daily digest sizes are capped to protect workers from unbounded memory use.
+- Rotate `APP_KEY` only with a migration plan: encrypted configuration depends on it.
+
+For intentional private-network delivery, enable the private-destination setting only on a trusted installation whose project administrators are allowed to reach that network.
+
+## Verification
+
+```bash
+sail artisan test
+sail npm run build
+sail npm run lint
+```
+
+The test suite covers authorization, invitation acceptance, ingress authentication, idempotency, filtering, templating, HTTP signing, email, digest windows, retention, and network-address rejection.
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+MIT

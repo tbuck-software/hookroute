@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Project;
 use App\Models\User;
 
 test('profile page is displayed', function () {
@@ -78,6 +79,19 @@ test('correct password must be provided to delete account', function () {
         ]);
 
     $response
+        ->assertSessionHasErrors('password')
+        ->assertRedirect('/profile');
+
+    $this->assertNotNull($user->fresh());
+});
+
+test('project owners must transfer ownership before deleting their account', function () {
+    $user = User::factory()->create();
+    Project::factory()->for($user, 'owner')->create();
+
+    $this->actingAs($user)
+        ->from('/profile')
+        ->delete('/profile', ['password' => 'password'])
         ->assertSessionHasErrors('password')
         ->assertRedirect('/profile');
 

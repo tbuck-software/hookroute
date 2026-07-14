@@ -1,22 +1,28 @@
 <script setup lang="ts">
-import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import { Link } from '@inertiajs/vue3';
 </script>
-
 <template>
-    <div
-        class="flex min-h-screen flex-col items-center bg-gray-100 pt-6 sm:justify-center sm:pt-0"
-    >
-        <div>
-            <Link href="/">
-                <ApplicationLogo class="h-20 w-20 fill-current text-gray-500" />
-            </Link>
-        </div>
-
-        <div
-            class="mt-6 w-full overflow-hidden bg-white px-6 py-4 shadow-md sm:max-w-md sm:rounded-lg"
-        >
-            <slot />
-        </div>
+    <div class="guest-shell">
+        <aside class="guest-brand">
+            <Link href="/" class="brand" style="padding: 0"
+                ><span class="brand-mark" />hookroute</Link
+            >
+            <div class="guest-brand-copy">
+                <span class="eyebrow">Webhook operations</span>
+                <h1>Every event.<br />Exactly where<br />it belongs.</h1>
+                <p>
+                    A small, deliberate gateway for capture, routing, delivery
+                    and replay.
+                </p>
+            </div>
+            <span
+                class="mono"
+                style="position: relative; z-index: 1; color: #8f9d94"
+                >PHP · Laravel · Vue</span
+            >
+        </aside>
+        <main class="guest-form">
+            <div class="guest-form-card"><slot /></div>
+        </main>
     </div>
 </template>

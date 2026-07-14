@@ -7,7 +7,9 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -49,11 +51,17 @@ class ProfileController extends Controller
             'password' => ['required', 'current_password'],
         ]);
 
-        $user = $request->user();
+        DB::transaction(function () use ($request) {
+            $user = $request->user()->newQuery()->lockForUpdate()->findOrFail($request->user()->id);
+            if ($user->ownedProjects()->exists()) {
+                throw ValidationException::withMessages([
+                    'password' => 'Transfer ownership of your projects before deleting this account.',
+                ]);
+            }
+            $user->delete();
+        });
 
         Auth::logout();
-
-        $user->delete();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

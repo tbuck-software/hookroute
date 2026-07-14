@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Project;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -29,10 +30,25 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $project = $request->route('project');
+
         return [
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
+            ],
+            'projects' => fn () => $request->user()?->projects()->orderBy('name')->get(['projects.id', 'name', 'slug']) ?? [],
+            'currentProject' => $project instanceof Project ? [
+                'id' => $project->id,
+                'name' => $project->name,
+                'slug' => $project->slug,
+                'timezone' => $project->timezone,
+                'can_manage' => $request->user()?->can('update', $project) ?? false,
+                'is_owner' => $request->user()?->can('delete', $project) ?? false,
+            ] : null,
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'created_source_url' => fn () => $request->session()->get('created_source_url'),
             ],
         ];
     }

@@ -1,12 +1,18 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "tbuck/hookroute",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "description": "A focused, self-hosted webhook gateway for routing, delivery, replay, and email digests.",
+    "keywords": [
+        "laravel",
+        "webhooks",
+        "routing",
+        "self-hosted"
+    ],
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "ext-curl": "*",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/framework": "^13.8",
         "laravel/sanctum": "^4.0",
@@ -19,6 +25,7 @@
         "laravel/pail": "^1.2.5",
         "laravel/pao": "^1.0.6",
         "laravel/pint": "^1.27",
+        "laravel/sail": "^1.63",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
         "pestphp/pest": "^4.7",
