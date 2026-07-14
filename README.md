@@ -21,14 +21,24 @@ It is deliberately smaller than a general workflow engine and can run on ordinar
 
 ## Requirements
 
-- Docker Desktop or another Docker Compose compatible runtime
-- Composer 2 for the initial dependency install
-- The included Laravel Sail environment provides PHP 8.4, MySQL 8.0, Node.js, and Mailpit
+For production:
+
+- PHP 8.3 or newer with the common Laravel extensions, including cURL, mbstring, OpenSSL, PDO, tokenizer, and XML
+- MySQL 8+ or SQLite
+- Composer 2
+- An SMTP account for invitations, immediate email destinations, and digests
 - A cron facility that can run every minute
+- A web server whose document root can point to the project's `public/` directory
+
+Node.js is only needed while building frontend assets. The generated `public/build/` directory can be uploaded to a host without Node.js.
+
+Local development additionally requires Docker Desktop or another Docker Compose compatible runtime. The included Laravel Sail environment provides PHP 8.4, MySQL 8.0, Node.js, and Mailpit.
 
 ## Local development with Sail
 
 ```bash
+git clone https://github.com/tbuck-software/hookroute.git
+cd hookroute
 composer install
 cp .env.example .env
 sail up -d
@@ -56,15 +66,63 @@ sail artisan schedule:work
 
 This repository includes Sail's `laravel.test`, MySQL, and Mailpit services. If your shell alias points to `vendor/bin/sail`, all commands above work as written. Use `sail down` to stop the environment and `sail down -v` only when the local MySQL volume should also be deleted.
 
-## Shared-hosting deployment
+## Production installation
+
+Start from a tagged release rather than an arbitrary commit from `main`. Replace `v0.1.0` with the release being installed:
+
+```bash
+git clone https://github.com/tbuck-software/hookroute.git
+cd hookroute
+git checkout v0.1.0
+composer install --no-dev --optimize-autoloader
+cp .env.example .env
+php artisan key:generate
+```
+
+Configure `.env` before running the database migration:
+
+```dotenv
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://webhook.example.com
+SESSION_SECURE_COOKIE=true
+
+DB_CONNECTION=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=hookroute
+DB_USERNAME=hookroute
+DB_PASSWORD=change-me
+
+QUEUE_CONNECTION=database
+SESSION_DRIVER=database
+CACHE_STORE=database
+
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.example.com
+MAIL_PORT=587
+MAIL_USERNAME=hookroute@example.com
+MAIL_PASSWORD=change-me
+MAIL_FROM_ADDRESS=hookroute@example.com
+```
+
+Then finish the installation:
+
+```bash
+php artisan migrate --force
+npm ci
+npm run build
+php artisan optimize
+```
+
+If Node.js is unavailable on the server, run `npm ci && npm run build` for the exact same release locally and upload the generated `public/build/` directory.
+
+### Web server and scheduler
 
 1. Point the domain document root at the project's `public/` directory.
-2. Configure `.env` with `APP_ENV=production`, `APP_DEBUG=false`, the canonical HTTPS `APP_URL`, `SESSION_SECURE_COOKIE=true`, MySQL credentials, and SMTP credentials.
+2. Make `storage/` and `bootstrap/cache/` writable by PHP.
 3. Keep `QUEUE_CONNECTION=database`, `SESSION_DRIVER=database`, and `CACHE_STORE=database`.
-4. Run `composer install --no-dev --optimize-autoloader`, `php artisan migrate --force`, and `php artisan optimize`.
-5. Build assets locally with `npm ci && npm run build` if Node is unavailable on the host, then upload `public/build/`.
-6. Make `storage/` and `bootstrap/cache/` writable by PHP.
-7. Add one cron entry:
+4. Add one cron entry:
 
 ```cron
 * * * * * cd /absolute/path/to/hookroute && php artisan schedule:run >> /dev/null 2>&1
@@ -75,6 +133,39 @@ That scheduler creates due digests, drains the database delivery queue for up to
 If `DB_QUEUE_RETRY_AFTER` is customized, keep it greater than both processing leases and job timeouts. The shipped 90-second queue retry window is paired with 30/60-second job timeouts and 45/75-second delivery/digest leases.
 
 The first account can register without an invitation. Afterwards, new accounts require a valid project invitation unless `HOOKROUTE_ALLOW_PUBLIC_REGISTRATION=true` is set deliberately.
+
+## Updates
+
+Hookroute uses semantic version tags and GitHub Releases. There is deliberately no automatic updater or background version check: an update can contain database migrations and should be installed consciously after reading its release notes.
+
+Before updating:
+
+1. Read the release notes and note any version-specific instructions.
+2. Back up the database and `.env` file.
+3. Pause the scheduler cron entry so no delivery worker starts during the update.
+4. Ensure the working tree contains no local source modifications.
+
+Replace `v0.1.1` with the target release and run:
+
+```bash
+php artisan down --retry=60
+git fetch --tags origin
+git checkout v0.1.1
+composer install --no-dev --optimize-autoloader
+npm ci
+npm run build
+php artisan migrate --force
+php artisan optimize
+php artisan up
+```
+
+If frontend assets are built elsewhere, upload the new `public/build/` directory before running `php artisan up`. Resume the scheduler afterwards and send a test event through one route.
+
+Never replace `.env` or run `php artisan key:generate` during an update. Source and destination secrets are encrypted with the existing `APP_KEY`; changing it without a migration plan makes those values unreadable. Database downgrades are not supported, so restore the backup when rolling back across migrations.
+
+The optional fixed-price setup service covers initial installation and 30 days of setup-related support. It does not include ongoing maintenance or automatic updates.
+
+Release changes are recorded in [CHANGELOG.md](CHANGELOG.md). Subscribe to the repository's GitHub Releases to be notified about new versions.
 
 ## Webhook ingress
 
