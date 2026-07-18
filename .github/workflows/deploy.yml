@@ -31,11 +31,14 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
+      - name: Resolve deployment commit
+        run: echo "DEPLOY_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: curl, mbstring, openssl, pdo_mysql, tokenizer, xml
+          extensions: curl, mbstring, openssl, pdo_mysql, tokenizer, xml, zip
           coverage: none
 
       - name: Install production PHP dependencies
@@ -93,7 +96,7 @@ jobs:
           }
           PHP
 
-      - name: Prepare deployment files
+      - name: Prepare release archive
         run: |
           mkdir -p "$RUNNER_TEMP/hookroute"
           rsync -a --delete \
@@ -107,25 +110,44 @@ jobs:
             --exclude='scripts/' \
             --exclude='README.md' \
             --exclude='CHANGELOG.md' \
+            --exclude='.env*' \
+            --exclude='deploy/' \
+            --exclude='database/database.sqlite' \
             ./ "$RUNNER_TEMP/hookroute/"
+          cd "$RUNNER_TEMP/hookroute"
+          php -r '
+            $files = [];
+            $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(".", FilesystemIterator::SKIP_DOTS));
+            foreach ($iterator as $file) {
+                if ($file->isFile()) {
+                    $files[] = substr($file->getPathname(), 2);
+                }
+            }
+            sort($files, SORT_STRING);
+            file_put_contents(".hookroute-release-manifest.json", json_encode($files, JSON_THROW_ON_ERROR));
+          '
+          zip -q -r "$RUNNER_TEMP/hookroute-release.zip" .
 
-      - name: Upload application over FTPS
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftps
-          security: strict
-          local-dir: ${{ runner.temp }}/hookroute/
-          server-dir: /
-          state-name: .hookroute-deploy-state.json
-          log-level: standard
+      - name: Upload release bundle over FTPS
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          upload() {
+            curl --fail --show-error --silent \
+              --ssl-reqd --ftp-ssl-control \
+              --user "$FTP_USERNAME:$FTP_PASSWORD" \
+              --ftp-create-dirs \
+              --upload-file "$1" \
+              "ftp://$FTP_SERVER/$2"
+          }
+
+          upload deploy/release.php public/hookroute-release.php
+          upload .env .hookroute-production.env
+          upload "$RUNNER_TEMP/hookroute-release.zip" .hookroute-release.zip
 
       - name: Run database migrations
-        env:
-          DEPLOY_SHA: ${{ github.sha }}
         run: |
           php <<'PHP'
           <?php
@@ -133,14 +155,17 @@ jobs:
 
           $values = Dotenv\Dotenv::createArrayBacked(__DIR__)->load();
           $timestamp = (string) time();
-          $payload = json_encode(['sha' => getenv('DEPLOY_SHA')], JSON_THROW_ON_ERROR);
+          $payload = json_encode([
+              'sha' => getenv('DEPLOY_SHA'),
+              'checksum' => hash_file('sha256', getenv('RUNNER_TEMP').'/hookroute-release.zip'),
+          ], JSON_THROW_ON_ERROR);
           $signature = hash_hmac(
               'sha256',
               $timestamp."\n".$payload,
               $values['HOOKROUTE_DEPLOY_SECRET'],
           );
 
-          $request = curl_init(rtrim($values['APP_URL'], '/').'/internal/deploy');
+          $request = curl_init(rtrim($values['APP_URL'], '/').'/hookroute-release.php');
           curl_setopt_array($request, [
               CURLOPT_POST => true,
               CURLOPT_POSTFIELDS => $payload,
