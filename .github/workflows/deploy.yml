@@ -183,7 +183,8 @@ jobs:
           $status = curl_getinfo($request, CURLINFO_RESPONSE_CODE);
 
           if ($response === false || $status !== 200) {
-              throw new RuntimeException("Remote migration failed with HTTP {$status}.");
+              $details = is_string($response) ? substr($response, 0, 500) : curl_error($request);
+              throw new RuntimeException("Remote migration failed with HTTP {$status}: {$details}");
           }
           PHP
 
