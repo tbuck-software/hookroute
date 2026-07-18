@@ -99,6 +99,19 @@ function removeStaleFiles(string $root, array $previous, array $current): void
 
 function failureCode(\Throwable $exception): string
 {
+    for ($current = $exception; $current !== null; $current = $current->getPrevious()) {
+        if (! $current instanceof \PDOException || ! is_array($current->errorInfo ?? null)) {
+            continue;
+        }
+
+        return match ($current->errorInfo[1] ?? null) {
+            1044, 1045 => 'database-access-denied',
+            1049 => 'database-not-found',
+            2002, 2003, 2006 => 'database-connection-failed',
+            default => 'database-error',
+        };
+    }
+
     return match ($exception->getMessage()) {
         'Release archive checksum mismatch.' => 'archive-checksum-mismatch',
         'PHP zip extension is required.' => 'zip-extension-missing',
@@ -109,6 +122,7 @@ function failureCode(\Throwable $exception): string
         'Invalid release manifest.', 'Invalid release manifest entry.' => 'manifest-invalid',
         'Release archive is incomplete.' => 'archive-incomplete',
         'Unable to install production configuration.' => 'environment-install-failed',
+        'Application bootstrap failed.' => 'application-bootstrap-failed',
         'Database migration failed.' => 'migration-failed',
         'Unable to store deployed release manifest.' => 'manifest-store-failed',
         default => 'bootstrap-failed',
@@ -210,10 +224,19 @@ function release(string $root, string $body, array $server, ?callable $migrate =
         @chmod($root.'/.env', 0600);
 
         if ($migrate === null) {
-            require $root.'/vendor/autoload.php';
-            $application = require $root.'/bootstrap/app.php';
-            $application->make(Kernel::class)->bootstrap();
-            $exitCode = Artisan::call('migrate', ['--force' => true]);
+            try {
+                require $root.'/vendor/autoload.php';
+                $application = require $root.'/bootstrap/app.php';
+                $application->make(Kernel::class)->bootstrap();
+            } catch (\Throwable $exception) {
+                throw new \RuntimeException('Application bootstrap failed.', previous: $exception);
+            }
+
+            try {
+                $exitCode = Artisan::call('migrate', ['--force' => true]);
+            } catch (\Throwable $exception) {
+                throw new \RuntimeException('Database migration failed.', previous: $exception);
+            }
         } else {
             $exitCode = $migrate($root);
         }

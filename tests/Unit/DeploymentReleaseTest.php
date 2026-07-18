@@ -61,7 +61,11 @@ it('reads quoted and unquoted deployment secrets from dotenv files', function ()
 });
 
 it('exposes only whitelisted deployment failure codes', function () {
+    $databaseException = new PDOException('password=secret');
+    $databaseException->errorInfo = ['HY000', 1045, 'password=secret'];
+
     expect(failureCode(new RuntimeException('PHP zip extension is required.')))->toBe('zip-extension-missing')
+        ->and(failureCode(new RuntimeException('migration', previous: $databaseException)))->toBe('database-access-denied')
         ->and(failureCode(new RuntimeException('DB_PASSWORD=secret')))->toBe('bootstrap-failed');
 });
 
