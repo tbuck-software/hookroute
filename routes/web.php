@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ConnectionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DeploymentController;
 use App\Http\Controllers\DestinationController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\InvitationController;
@@ -54,6 +55,10 @@ Route::get('/datenschutz', function () {
 Route::match(['POST', 'PUT', 'PATCH'], '/hooks/{source:public_id}/{secret}', WebhookReceiverController::class)
     ->middleware('throttle:webhooks')
     ->name('hooks.receive');
+
+Route::post('/internal/deploy', DeploymentController::class)
+    ->middleware('throttle:6,1')
+    ->name('internal.deploy');
 
 Route::get('/invitations/{token}', [InvitationController::class, 'show'])->name('invitations.show');
 

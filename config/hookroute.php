@@ -12,4 +12,5 @@ return [
     'digest_event_preview_bytes' => (int) env('HOOKROUTE_DIGEST_EVENT_PREVIEW_BYTES', 4_000),
     'digest_processing_lease_seconds' => (int) env('HOOKROUTE_DIGEST_PROCESSING_LEASE', 75),
     'allow_public_registration' => (bool) env('HOOKROUTE_ALLOW_PUBLIC_REGISTRATION', false),
+    'deploy_secret' => env('HOOKROUTE_DEPLOY_SECRET'),
 ];

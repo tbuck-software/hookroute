@@ -1,0 +1,166 @@
+name: Deploy to production
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or commit to deploy
+        required: true
+        default: main
+        type: string
+
+concurrency:
+  group: hookroute-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy hook.tbuck.de
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://hook.tbuck.de
+
+    steps:
+      - name: Check out deployment ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: curl, mbstring, openssl, pdo_mysql, tokenizer, xml
+          coverage: none
+
+      - name: Install production PHP dependencies
+        run: composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+          cache: npm
+
+      - name: Build frontend assets
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install production configuration
+        env:
+          PRODUCTION_ENV: ${{ secrets.PRODUCTION_ENV }}
+        run: |
+          test -n "$PRODUCTION_ENV"
+          printf '%s\n' "$PRODUCTION_ENV" > .env
+          php <<'PHP'
+          <?php
+          require __DIR__.'/vendor/autoload.php';
+
+          $values = Dotenv\Dotenv::createArrayBacked(__DIR__)->load();
+          $required = [
+              'APP_KEY',
+              'DB_CONNECTION',
+              'DB_HOST',
+              'DB_PORT',
+              'DB_DATABASE',
+              'DB_USERNAME',
+              'DB_PASSWORD',
+              'HOOKROUTE_DEPLOY_SECRET',
+          ];
+
+          foreach ($required as $key) {
+              if (($values[$key] ?? '') === '') {
+                  throw new RuntimeException("Missing required production setting: {$key}");
+              }
+          }
+
+          if (($values['APP_ENV'] ?? '') !== 'production') {
+              throw new RuntimeException('APP_ENV must be production.');
+          }
+
+          if (($values['APP_DEBUG'] ?? '') !== 'false') {
+              throw new RuntimeException('APP_DEBUG must be false.');
+          }
+
+          if (($values['APP_URL'] ?? '') !== 'https://hook.tbuck.de') {
+              throw new RuntimeException('APP_URL must be https://hook.tbuck.de.');
+          }
+          PHP
+
+      - name: Prepare deployment files
+        run: |
+          mkdir -p "$RUNNER_TEMP/hookroute"
+          rsync -a --delete \
+            --exclude='.ai/' \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='node_modules/' \
+            --exclude='tests/' \
+            --exclude='compose.yaml' \
+            --exclude='phpunit.xml' \
+            --exclude='scripts/' \
+            --exclude='README.md' \
+            --exclude='CHANGELOG.md' \
+            ./ "$RUNNER_TEMP/hookroute/"
+
+      - name: Upload application over FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftps
+          security: strict
+          local-dir: ${{ runner.temp }}/hookroute/
+          server-dir: /
+          state-name: .hookroute-deploy-state.json
+          log-level: standard
+
+      - name: Run database migrations
+        env:
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          php <<'PHP'
+          <?php
+          require __DIR__.'/vendor/autoload.php';
+
+          $values = Dotenv\Dotenv::createArrayBacked(__DIR__)->load();
+          $timestamp = (string) time();
+          $payload = json_encode(['sha' => getenv('DEPLOY_SHA')], JSON_THROW_ON_ERROR);
+          $signature = hash_hmac(
+              'sha256',
+              $timestamp."\n".$payload,
+              $values['HOOKROUTE_DEPLOY_SECRET'],
+          );
+
+          $request = curl_init(rtrim($values['APP_URL'], '/').'/internal/deploy');
+          curl_setopt_array($request, [
+              CURLOPT_POST => true,
+              CURLOPT_POSTFIELDS => $payload,
+              CURLOPT_RETURNTRANSFER => true,
+              CURLOPT_CONNECTTIMEOUT => 15,
+              CURLOPT_TIMEOUT => 180,
+              CURLOPT_HTTPHEADER => [
+                  'Content-Type: application/json',
+                  'X-Hookroute-Deploy-Timestamp: '.$timestamp,
+                  'X-Hookroute-Deploy-Signature: '.$signature,
+              ],
+          ]);
+
+          $response = curl_exec($request);
+          $status = curl_getinfo($request, CURLINFO_RESPONSE_CODE);
+
+          if ($response === false || $status !== 200) {
+              throw new RuntimeException("Remote migration failed with HTTP {$status}.");
+          }
+          PHP
+
+      - name: Verify production health
+        run: curl --fail --show-error --silent --retry 3 --retry-delay 5 https://hook.tbuck.de/up > /dev/null
