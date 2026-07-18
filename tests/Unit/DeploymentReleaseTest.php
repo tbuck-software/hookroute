@@ -1,6 +1,7 @@
 <?php
 
 use function Hookroute\Deploy\envValue;
+use function Hookroute\Deploy\failureCode;
 use function Hookroute\Deploy\manifestFiles;
 use function Hookroute\Deploy\release;
 use function Hookroute\Deploy\removeStaleFiles;
@@ -57,6 +58,11 @@ it('reads quoted and unquoted deployment secrets from dotenv files', function ()
 
     expect(envValue($path, 'HOOKROUTE_DEPLOY_SECRET'))->toBe('secret value')
         ->and(envValue($path, 'MISSING'))->toBeNull();
+});
+
+it('exposes only whitelisted deployment failure codes', function () {
+    expect(failureCode(new RuntimeException('PHP zip extension is required.')))->toBe('zip-extension-missing')
+        ->and(failureCode(new RuntimeException('DB_PASSWORD=secret')))->toBe('bootstrap-failed');
 });
 
 it('rejects unsafe archive and manifest paths', function (string $path, bool $valid) {

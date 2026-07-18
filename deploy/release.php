@@ -97,6 +97,24 @@ function removeStaleFiles(string $root, array $previous, array $current): void
     }
 }
 
+function failureCode(\Throwable $exception): string
+{
+    return match ($exception->getMessage()) {
+        'Release archive checksum mismatch.' => 'archive-checksum-mismatch',
+        'PHP zip extension is required.' => 'zip-extension-missing',
+        'A deployment is already running.' => 'deployment-locked',
+        'Unable to open release archive.' => 'archive-open-failed',
+        'Unsafe release archive entry.' => 'archive-entry-unsafe',
+        'Unable to extract release archive.' => 'archive-extract-failed',
+        'Invalid release manifest.', 'Invalid release manifest entry.' => 'manifest-invalid',
+        'Release archive is incomplete.' => 'archive-incomplete',
+        'Unable to install production configuration.' => 'environment-install-failed',
+        'Database migration failed.' => 'migration-failed',
+        'Unable to store deployed release manifest.' => 'manifest-store-failed',
+        default => 'bootstrap-failed',
+    };
+}
+
 function release(string $root, string $body, array $server, ?callable $migrate = null): array
 {
     $timestamp = $server['HTTP_X_HOOKROUTE_DEPLOY_TIMESTAMP'] ?? null;
@@ -237,7 +255,7 @@ function respond(): never
     } catch (\Throwable $exception) {
         error_log('Hookroute release failed: '.$exception->getMessage());
         http_response_code(500);
-        echo json_encode(['message' => 'Deployment failed']);
+        echo json_encode(['message' => 'Deployment failed', 'code' => failureCode($exception)]);
     }
 
     exit;
