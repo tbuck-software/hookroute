@@ -38,10 +38,10 @@ It is deliberately smaller than a general workflow engine and can run on ordinar
 
 For production:
 
-- PHP 8.3 or newer with the common Laravel extensions, including cURL, mbstring, OpenSSL, PDO, tokenizer, and XML
+- PHP 8.4 or newer with the common Laravel extensions, including cURL, mbstring, OpenSSL, PDO, tokenizer, and XML
 - MySQL 8+ or SQLite
 - Composer 2
-- An SMTP account for invitations, immediate email destinations, and digests
+- A working local sendmail transport or an SMTP account for invitations, immediate email destinations, and digests
 - A cron facility that can run every minute
 - A web server whose document root can point to the project's `public/` directory
 
