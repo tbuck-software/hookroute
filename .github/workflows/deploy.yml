@@ -114,7 +114,7 @@ jobs:
             ./ "$RUNNER_TEMP/hookroute/"
 
       - name: Deploy signed ZIP release
-        uses: tbuck-software/ftps-zip-deploy@d3ad051ee732f04315c8f4c5d40dad9827358098
+        uses: tbuck-software/ftps-zip-deploy@v1.0.0
         with:
           source-directory: ${{ runner.temp }}/hookroute
           ftp-server: ${{ secrets.FTP_SERVER }}
