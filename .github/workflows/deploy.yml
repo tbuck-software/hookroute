@@ -20,7 +20,7 @@ jobs:
   deploy:
     name: Deploy hook.tbuck.de
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 90
     environment:
       name: production
       url: https://hook.tbuck.de
