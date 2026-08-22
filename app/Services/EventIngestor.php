@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Enums\DestinationType;
 use App\Enums\DeliveryStatus;
+use App\Enums\DestinationType;
 use App\Jobs\ProcessDelivery;
 use App\Models\Event;
 use App\Models\Source;

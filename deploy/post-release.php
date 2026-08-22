@@ -1,14 +1,16 @@
 <?php
 
 declare(strict_types=1);
+use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Support\Facades\Artisan;
 
 return static function (array $deployment): int {
     $root = $deployment['root'];
 
     require_once $root.'/vendor/autoload.php';
     $application = require $root.'/bootstrap/app.php';
-    $application->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
-    $exitCode = Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+    $application->make(Kernel::class)->bootstrap();
+    $exitCode = Artisan::call('migrate', ['--force' => true]);
 
     if ($exitCode !== 0) {
         return $exitCode;
