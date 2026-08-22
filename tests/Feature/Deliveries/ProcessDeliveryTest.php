@@ -175,3 +175,22 @@ it('renders the discord default template with real newlines', function () {
     });
     expect($delivery->fresh()->status)->toBe('delivered');
 });
+
+it('renders email templates as plain text without json escaping', function () {
+    Mail::fake();
+    $destination = Destination::factory()->email()->create();
+    $connection = Connection::factory()->for($destination)->create([
+        'subject_template' => 'Alert: {{ payload.title }}',
+        'body_template' => 'Message: {{ payload.message }}',
+    ]);
+    $event = Event::factory()->for($connection->source)->create([
+        'project_id' => $connection->project_id,
+        'payload' => ['title' => 'Disk "full"', 'message' => 'Path C:\temp used'],
+    ]);
+    $delivery = Delivery::factory()->for($event)->for($connection)->for($destination)->create();
+
+    (new ProcessDelivery($delivery->id))->handle(app(DeliveryDispatcher::class), app(DeliveryErrorSanitizer::class));
+
+    Mail::assertSent(EventNotificationMail::class, fn ($mail) => $mail->subjectLine === 'Alert: Disk "full"'
+        && $mail->bodyText === 'Message: Path C:\temp used');
+});

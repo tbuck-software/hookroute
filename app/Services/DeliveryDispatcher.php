@@ -97,10 +97,12 @@ class DeliveryDispatcher
         $subject = $this->renderer->render(
             $delivery->connection->subject_template ?: 'Event {{ event.id }} from {{ source.name }}',
             $delivery->event->templateContext(),
+            jsonSafe: false,
         );
         $body = $this->renderer->render(
             $delivery->connection->body_template ?: "Source: {{ source.name }}\nReceived: {{ event.received_at }}\n\n{{ payload }}",
             $delivery->event->templateContext(),
+            jsonSafe: false,
         );
 
         Mail::to($config['recipients'] ?? [])->send(new EventNotificationMail($delivery->event, $subject, $body));
