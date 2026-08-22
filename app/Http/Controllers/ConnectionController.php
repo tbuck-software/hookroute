@@ -67,5 +67,4 @@ class ConnectionController extends Controller
             'filters.*.value' => ['nullable'],
         ]);
     }
-
 }
