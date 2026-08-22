@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Delivery;
 use App\Services\DeliveryDispatcher;
 use App\Services\DeliveryErrorSanitizer;
+use App\Services\ResponseRedactor;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +20,10 @@ class ProcessDelivery implements ShouldQueue
 
     public int $timeout = 30;
 
-    public function __construct(public readonly int $deliveryId) {}
+    public function __construct(
+        public readonly int $deliveryId,
+        private readonly ResponseRedactor $redactor = new ResponseRedactor,
+    ) {}
 
     public function backoff(): array
     {
@@ -61,7 +65,7 @@ class ProcessDelivery implements ShouldQueue
                 $delivery->update([
                     'status' => 'retrying',
                     'response_status' => $response->status(),
-                    'response_excerpt' => Str::limit($response->body(), config('hookroute.response_excerpt_bytes'), '…'),
+                    'response_excerpt' => Str::limit($this->redactor->redact($response->body()), config('hookroute.response_excerpt_bytes'), '…'),
                     'last_error' => 'Destination returned HTTP '.$response->status().'.',
                 ]);
 
@@ -71,7 +75,7 @@ class ProcessDelivery implements ShouldQueue
             $delivery->update([
                 'status' => 'delivered',
                 'response_status' => $response?->status(),
-                'response_excerpt' => $response ? Str::limit($response->body(), config('hookroute.response_excerpt_bytes'), '…') : null,
+                'response_excerpt' => $response ? Str::limit($this->redactor->redact($response->body()), config('hookroute.response_excerpt_bytes'), '…') : null,
                 'delivered_at' => now(),
             ]);
             $delivery->destination()->update(['last_delivered_at' => now()]);

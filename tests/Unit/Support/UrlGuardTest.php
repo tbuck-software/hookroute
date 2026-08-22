@@ -34,3 +34,38 @@ it('still requires https when private network destinations are enabled', functio
     expect(fn () => (new UrlGuard)->assertSafe('file:///etc/passwd'))
         ->toThrow(ValidationException::class);
 });
+
+it('rejects hostnames whose system resolver answer is private', function () {
+    $guard = new class extends UrlGuard
+    {
+        protected function resolve(string $host): array
+        {
+            return ['93.184.216.34'];
+        }
+
+        protected function systemAddress(string $host): ?string
+        {
+            return '10.0.0.5';
+        }
+    };
+
+    expect(fn () => $guard->assertSafe('https://receiver.example/hook'))
+        ->toThrow(ValidationException::class);
+});
+
+it('accepts hostnames whose system resolver answer is public', function () {
+    $guard = new class extends UrlGuard
+    {
+        protected function resolve(string $host): array
+        {
+            return ['93.184.216.34'];
+        }
+
+        protected function systemAddress(string $host): ?string
+        {
+            return '93.184.216.34';
+        }
+    };
+
+    expect(fn () => $guard->assertSafe('https://receiver.example/hook'))->not->toThrow(ValidationException::class);
+});

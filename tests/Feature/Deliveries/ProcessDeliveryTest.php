@@ -149,3 +149,22 @@ it('keeps a safe http status error through terminal failure', function () {
     expect($delivery->fresh()->status)->toBe('failed')
         ->and($delivery->fresh()->last_error)->toBe('Destination returned HTTP 503.');
 });
+
+it('redacts credential-looking values from stored response excerpts', function () {
+    config(['hookroute.allow_private_destinations' => true]);
+    Http::fake(['https://receiver.example/*' => Http::response(
+        '{"ok":true,"access_token":"super-secret-value-42","note":"Bearer abcdef123456"}',
+        200,
+    )]);
+    $destination = Destination::factory()->webhook()->create();
+    $connection = Connection::factory()->for($destination)->create();
+    $event = Event::factory()->for($connection->source)->create(['project_id' => $connection->project_id]);
+    $delivery = Delivery::factory()->for($event)->for($connection)->for($destination)->create();
+
+    (new ProcessDelivery($delivery->id))->handle(app(DeliveryDispatcher::class), app(DeliveryErrorSanitizer::class));
+
+    $excerpt = $delivery->fresh()->response_excerpt;
+    expect($excerpt)->toContain('[redacted]')
+        ->and($excerpt)->not->toContain('super-secret')
+        ->and($excerpt)->not->toContain('abcdef123456');
+});
