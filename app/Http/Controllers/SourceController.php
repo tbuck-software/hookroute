@@ -65,7 +65,7 @@ class SourceController extends Controller
     public function update(Request $request, Project $project, Source $source): RedirectResponse
     {
         $this->authorize('update', $project);
-        $this->belongsTo($project, $source);
+        $this->belongsToProject($source, $project);
         $keepsExistingSecret = ! $request->boolean('clear_signing_secret')
             && filled($source->signing_secret);
         $requiresSignatureHeader = $keepsExistingSecret || filled($request->input('signing_secret'));
@@ -94,7 +94,7 @@ class SourceController extends Controller
     public function rotate(Request $request, Project $project, Source $source): RedirectResponse
     {
         $this->authorize('update', $project);
-        $this->belongsTo($project, $source);
+        $this->belongsToProject($source, $project);
         $secret = Str::random(48);
         $source->update(['secret' => $secret, 'secret_hash' => hash('sha256', $secret)]);
 
@@ -104,14 +104,10 @@ class SourceController extends Controller
     public function destroy(Request $request, Project $project, Source $source): RedirectResponse
     {
         $this->authorize('update', $project);
-        $this->belongsTo($project, $source);
+        $this->belongsToProject($source, $project);
         $source->delete();
 
         return back()->with('success', 'Source deleted.');
     }
 
-    private function belongsTo(Project $project, Source $source): void
-    {
-        abort_unless($source->project_id === $project->id, 404);
-    }
 }

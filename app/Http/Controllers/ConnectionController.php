@@ -36,7 +36,7 @@ class ConnectionController extends Controller
     public function update(Request $request, Project $project, Connection $connection): RedirectResponse
     {
         $this->authorize('update', $project);
-        $this->belongsTo($project, $connection);
+        $this->belongsToProject($connection, $project);
         $connection->update($this->validated($request, $project));
 
         return back()->with('success', 'Route updated.');
@@ -45,7 +45,7 @@ class ConnectionController extends Controller
     public function destroy(Request $request, Project $project, Connection $connection): RedirectResponse
     {
         $this->authorize('update', $project);
-        $this->belongsTo($project, $connection);
+        $this->belongsToProject($connection, $project);
         $connection->delete();
 
         return back()->with('success', 'Route deleted.');
@@ -68,8 +68,4 @@ class ConnectionController extends Controller
         ]);
     }
 
-    private function belongsTo(Project $project, Connection $connection): void
-    {
-        abort_unless($connection->project_id === $project->id, 404);
-    }
 }
