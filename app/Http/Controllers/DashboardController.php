@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\DeliveryStatus;
 use App\Models\Delivery;
 use App\Models\Project;
 use Illuminate\Http\RedirectResponse;
@@ -53,6 +54,6 @@ class DashboardController extends Controller
         $query->where('deliveries.created_at', '>=', now()->subDay());
         $total = (clone $query)->count();
 
-        return $total === 0 ? 100 : (int) round((clone $query)->where('status', 'delivered')->count() / $total * 100);
+        return $total === 0 ? 100 : (int) round((clone $query)->where('status', DeliveryStatus::Delivered)->count() / $total * 100);
     }
 }

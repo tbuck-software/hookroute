@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\DeliveryStatus;
 use App\Enums\DestinationType;
 use App\Mail\EventNotificationMail;
 use App\Models\Delivery;
@@ -25,7 +26,7 @@ class DeliveryDispatcher
         $destination = $delivery->destination;
 
         if (! $destination->enabled) {
-            $delivery->update(['status' => 'skipped', 'last_error' => 'Destination is disabled.']);
+            $delivery->update(['status' => DeliveryStatus::Skipped, 'last_error' => 'Destination is disabled.']);
 
             return null;
         }
