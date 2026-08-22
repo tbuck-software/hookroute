@@ -7,7 +7,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, reactive } from 'vue';
 interface EventRow {
     id: string;
-    source: { id: number; name: string };
+    source: { id: string; name: string };
     received_at: string;
     content_type?: string;
     delivery_counts: Record<string, number>;
@@ -19,10 +19,10 @@ const props = defineProps<{
         data: EventRow[];
         links: Array<{ url?: string; label: string; active: boolean }>;
     };
-    sources: Array<{ id: number; name: string }>;
+    sources: Array<{ id: string; name: string }>;
     filters: { source?: string; status?: string };
 }>();
-const filter = reactive<{ source: string | number; status: string }>({
+const filter = reactive<{ source: string; status: string }>({
     source: props.filters.source || '',
     status: props.filters.status || '',
 });

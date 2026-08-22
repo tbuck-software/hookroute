@@ -103,7 +103,9 @@ class EventIngestor
             return is_array($decoded) ? $decoded : null;
         }
 
-        $data = $request->all();
+        // Only the request body, so query-string parameters do not leak
+        // into stored payloads or route filters.
+        $data = $request->post();
 
         return $data !== [] ? $data : null;
     }

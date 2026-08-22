@@ -19,7 +19,12 @@ class EventController extends Controller
         $this->authorize('view', $project);
         $events = $project->events()
             ->with(['source', 'deliveries'])
-            ->when($request->string('source')->isNotEmpty(), fn ($query) => $query->where('source_id', $request->integer('source')))
+            ->when($request->string('source')->isNotEmpty(), function ($query) use ($project, $request) {
+                $sourceId = $project->sources()
+                    ->where('public_id', $request->string('source'))
+                    ->value('id');
+                $query->where('source_id', $sourceId ?? 0);
+            })
             ->when($request->string('status')->isNotEmpty(), function ($query) use ($request) {
                 $status = $request->string('status')->toString();
                 $query->whereHas('deliveries', fn ($deliveries) => $deliveries->where('status', $status));
@@ -29,7 +34,7 @@ class EventController extends Controller
             ->withQueryString()
             ->through(fn (Event $event) => [
                 'id' => $event->public_id,
-                'source' => ['id' => $event->source->id, 'name' => $event->source->name],
+                'source' => ['id' => $event->source->public_id, 'name' => $event->source->name],
                 'received_at' => $event->received_at,
                 'content_type' => $event->content_type,
                 'delivery_counts' => $event->deliveries->countBy(fn (Delivery $delivery) => $delivery->status->value),
@@ -39,7 +44,7 @@ class EventController extends Controller
         return Inertia::render('Events/Index', [
             'project' => $project,
             'events' => $events,
-            'sources' => $project->sources()->get(['id', 'name']),
+            'sources' => $project->sources()->get(['public_id', 'name']),
             'filters' => $request->only(['source', 'status']),
         ]);
     }
