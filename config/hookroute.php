@@ -11,6 +11,7 @@ return [
     'digest_max_events' => (int) env('HOOKROUTE_DIGEST_MAX_EVENTS', 100),
     'digest_event_preview_bytes' => (int) env('HOOKROUTE_DIGEST_EVENT_PREVIEW_BYTES', 4_000),
     'digest_processing_lease_seconds' => (int) env('HOOKROUTE_DIGEST_PROCESSING_LEASE', 75),
+    'prune_batch_size' => (int) env('HOOKROUTE_PRUNE_BATCH_SIZE', 500),
     'allow_public_registration' => (bool) env('HOOKROUTE_ALLOW_PUBLIC_REGISTRATION', false),
     'deploy_secret' => env('HOOKROUTE_DEPLOY_SECRET'),
 ];
