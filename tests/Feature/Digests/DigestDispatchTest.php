@@ -134,3 +134,33 @@ it('reclaims a digest after its processing lease expires', function () {
     Mail::assertSent(DigestMail::class);
     expect($run->fresh()->status)->toBe('sent');
 });
+
+it('recovers events from days missed after downtime', function () {
+    Queue::fake();
+    Carbon::setTestNow(Carbon::parse('2026-07-13 16:05:00 UTC'));
+    $destination = Destination::factory()->digest()->create();
+    $source = Source::factory()->for($destination->project)->create();
+    Connection::factory()->for($destination->project)->for($source)->for($destination)->create();
+    Event::factory()->for($destination->project)->for($source)->create(['received_at' => now()]);
+
+    $this->artisan('digests:dispatch')->assertSuccessful();
+    expect(DigestRun::count())->toBe(1);
+
+    Carbon::setTestNow(Carbon::parse('2026-07-15 16:05:00 UTC'));
+    $missed = Event::factory()->for($destination->project)->for($source)->create([
+        'received_at' => Carbon::parse('2026-07-14 12:00:00 UTC'),
+    ]);
+
+    $this->artisan('digests:dispatch')->assertSuccessful();
+
+    expect(DigestRun::count())->toBe(3);
+    $recovered = DigestRun::query()
+        ->where('window_end', Carbon::parse('2026-07-14 16:00:00 UTC'))
+        ->firstOrFail();
+    $empty = DigestRun::query()
+        ->where('window_end', Carbon::parse('2026-07-15 16:00:00 UTC'))
+        ->firstOrFail();
+    expect($recovered->event_ids)->toBe([$missed->id])
+        ->and($recovered->total_event_count)->toBe(1)
+        ->and($empty->status)->toBe('skipped');
+});
