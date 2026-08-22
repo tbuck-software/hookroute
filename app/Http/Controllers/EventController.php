@@ -46,7 +46,7 @@ class EventController extends Controller
     public function show(Request $request, Project $project, Event $event): Response
     {
         $this->authorize('view', $project);
-        $this->belongsTo($project, $event);
+        $this->belongsToProject($event, $project);
         $event->load(['source', 'deliveries.destination', 'deliveries.connection']);
         if (! $request->user()->can('update', $project)) {
             $event->deliveries->each->makeHidden('response_excerpt');
@@ -61,7 +61,7 @@ class EventController extends Controller
     public function replay(Request $request, Project $project, Event $event, Delivery $delivery): RedirectResponse
     {
         $this->authorize('update', $project);
-        $this->belongsTo($project, $event);
+        $this->belongsToProject($event, $project);
         abort_unless($delivery->event_id === $event->id, 404);
         $queued = Delivery::query()
             ->whereKey($delivery->id)
@@ -77,8 +77,4 @@ class EventController extends Controller
         return back()->with('success', $queued ? 'Delivery queued for replay.' : 'Delivery is already queued or processing.');
     }
 
-    private function belongsTo(Project $project, Event $event): void
-    {
-        abort_unless($event->project_id === $project->id, 404);
-    }
 }
