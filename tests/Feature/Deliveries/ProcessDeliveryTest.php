@@ -149,3 +149,28 @@ it('keeps a safe http status error through terminal failure', function () {
     expect($delivery->fresh()->status)->toBe('failed')
         ->and($delivery->fresh()->last_error)->toBe('Destination returned HTTP 503.');
 });
+
+it('renders the discord default template with real newlines', function () {
+    config(['hookroute.allow_private_destinations' => true]);
+    Http::fake(['https://discord.com/*' => Http::response('', 204)]);
+    $destination = Destination::factory()->discord()->create();
+    $connection = Connection::factory()->for($destination)->create(['body_template' => null]);
+    $event = Event::factory()->for($connection->source)->create([
+        'project_id' => $connection->project_id,
+        'payload' => ['alert' => 'disk full'],
+    ]);
+    $delivery = Delivery::factory()->for($event)->for($connection)->for($destination)->create();
+
+    (new ProcessDelivery($delivery->id))->handle(app(DeliveryDispatcher::class), app(DeliveryErrorSanitizer::class));
+
+    Http::assertSent(function ($request) use ($event) {
+        $content = $request['content'] ?? null;
+
+        return is_string($content)
+            && str_contains($content, "\n")
+            && ! str_contains($content, '\\n')
+            && str_contains($content, $event->public_id)
+            && $request['allowed_mentions'] === ['parse' => []];
+    });
+    expect($delivery->fresh()->status)->toBe('delivered');
+});

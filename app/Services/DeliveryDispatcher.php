@@ -70,7 +70,12 @@ class DeliveryDispatcher
         $url = $config['url'] ?? '';
         $options = $this->requestOptions($url);
         $rendered = $this->renderer->render(
-            $delivery->connection->body_template ?: '**{{ source.name }}** · `{{ event.id }}`\n```json\n{{ payload }}\n```',
+            $delivery->connection->body_template ?: <<<'TPL'
+                **{{ source.name }}** · `{{ event.id }}`
+                ```json
+                {{ payload }}
+                ```
+                TPL,
             $delivery->event->templateContext(),
         );
         $decoded = json_decode($rendered, true);
