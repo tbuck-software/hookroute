@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\DestinationType;
+use App\Enums\DeliveryStatus;
 use App\Jobs\ProcessDelivery;
 use App\Models\Event;
 use App\Models\Source;
@@ -76,7 +77,7 @@ class EventIngestor
                     $delivery = $event->deliveries()->create([
                         'connection_id' => $connection->id,
                         'destination_id' => $destination->id,
-                        'status' => 'pending',
+                        'status' => DeliveryStatus::Pending,
                     ]);
                     ProcessDelivery::dispatch($delivery->id)->afterCommit();
                 }

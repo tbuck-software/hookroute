@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\DeliveryStatus;
 use App\Jobs\ProcessDelivery;
 use App\Models\Delivery;
 use App\Models\Event;
@@ -31,7 +32,7 @@ class EventController extends Controller
                 'source' => ['id' => $event->source->id, 'name' => $event->source->name],
                 'received_at' => $event->received_at,
                 'content_type' => $event->content_type,
-                'delivery_counts' => $event->deliveries->countBy('status'),
+                'delivery_counts' => $event->deliveries->countBy(fn (Delivery $delivery) => $delivery->status->value),
                 'payload_preview' => mb_substr(json_encode($event->payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), 0, 240),
             ]);
 
@@ -65,9 +66,9 @@ class EventController extends Controller
         abort_unless($delivery->event_id === $event->id, 404);
         $queued = Delivery::query()
             ->whereKey($delivery->id)
-            ->whereNotIn('status', ['pending', 'processing', 'retrying'])
+            ->whereNotIn('status', [DeliveryStatus::Pending, DeliveryStatus::Processing, DeliveryStatus::Retrying])
             ->update([
-                'status' => 'pending', 'attempts' => 0, 'response_status' => null,
+                'status' => DeliveryStatus::Pending, 'attempts' => 0, 'response_status' => null,
                 'response_excerpt' => null, 'last_error' => null, 'delivered_at' => null,
             ]);
         if ($queued) {

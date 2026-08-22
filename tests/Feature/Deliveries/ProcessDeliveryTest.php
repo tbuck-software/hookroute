@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\DeliveryStatus;
 use App\Jobs\ProcessDelivery;
 use App\Mail\EventNotificationMail;
 use App\Models\Connection;
@@ -36,7 +37,7 @@ it('renders and signs a generic webhook delivery', function () {
 
     (new ProcessDelivery($delivery->id))->handle(app(DeliveryDispatcher::class), app(DeliveryErrorSanitizer::class));
 
-    expect($delivery->fresh()->status)->toBe('delivered');
+    expect($delivery->fresh()->status)->toBe(DeliveryStatus::Delivered);
     Http::assertSent(fn ($request) => $request['order_id'] === 84
         && $request->hasHeader('X-Hookroute-Signature')
         && $request->hasHeader('X-Environment', 'test'));
@@ -58,7 +59,7 @@ it('sends an immediate email destination through the same delivery pipeline', fu
     (new ProcessDelivery($delivery->id))->handle(app(DeliveryDispatcher::class), app(DeliveryErrorSanitizer::class));
 
     Mail::assertSent(EventNotificationMail::class, fn ($mail) => $mail->subjectLine === 'Event '.$event->public_id.' from '.$event->source->name);
-    expect($delivery->fresh()->status)->toBe('delivered');
+    expect($delivery->fresh()->status)->toBe(DeliveryStatus::Delivered);
 });
 
 it('keeps a disabled destination delivery skipped', function () {
@@ -69,7 +70,7 @@ it('keeps a disabled destination delivery skipped', function () {
 
     (new ProcessDelivery($delivery->id))->handle(app(DeliveryDispatcher::class), app(DeliveryErrorSanitizer::class));
 
-    expect($delivery->fresh()->status)->toBe('skipped');
+    expect($delivery->fresh()->status)->toBe(DeliveryStatus::Skipped);
 });
 
 it('does not process a delivery already claimed by another worker', function () {
@@ -130,7 +131,7 @@ it('reclaims a processing delivery after its worker lease expires', function () 
     (new ProcessDelivery($delivery->id))->handle(app(DeliveryDispatcher::class), app(DeliveryErrorSanitizer::class));
 
     Mail::assertSent(EventNotificationMail::class);
-    expect($delivery->fresh()->status)->toBe('delivered');
+    expect($delivery->fresh()->status)->toBe(DeliveryStatus::Delivered);
 });
 
 it('keeps a safe http status error through terminal failure', function () {
@@ -146,7 +147,7 @@ it('keeps a safe http status error through terminal failure', function () {
         ->toThrow(RuntimeException::class);
     $job->failed(new RuntimeException('Destination returned HTTP 503.'));
 
-    expect($delivery->fresh()->status)->toBe('failed')
+    expect($delivery->fresh()->status)->toBe(DeliveryStatus::Failed)
         ->and($delivery->fresh()->last_error)->toBe('Destination returned HTTP 503.');
 });
 
