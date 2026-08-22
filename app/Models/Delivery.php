@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DeliveryStatus;
 use Database\Factories\DeliveryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,7 +20,11 @@ class Delivery extends Model
 
     protected function casts(): array
     {
-        return ['last_attempted_at' => 'datetime', 'delivered_at' => 'datetime'];
+        return [
+            'status' => DeliveryStatus::class,
+            'last_attempted_at' => 'datetime',
+            'delivered_at' => 'datetime',
+        ];
     }
 
     public function event(): BelongsTo

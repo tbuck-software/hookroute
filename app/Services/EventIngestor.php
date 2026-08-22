@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\DestinationType;
+use App\Enums\DeliveryStatus;
 use App\Jobs\ProcessDelivery;
 use App\Models\Event;
 use App\Models\Source;
@@ -76,7 +77,7 @@ class EventIngestor
                     $delivery = $event->deliveries()->create([
                         'connection_id' => $connection->id,
                         'destination_id' => $destination->id,
-                        'status' => 'pending',
+                        'status' => DeliveryStatus::Pending,
                     ]);
                     ProcessDelivery::dispatch($delivery->id)->afterCommit();
                 }
@@ -102,7 +103,9 @@ class EventIngestor
             return is_array($decoded) ? $decoded : null;
         }
 
-        $data = $request->all();
+        // Only the request body, so query-string parameters do not leak
+        // into stored payloads or route filters.
+        $data = $request->post();
 
         return $data !== [] ? $data : null;
     }

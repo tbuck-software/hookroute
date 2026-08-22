@@ -2,9 +2,11 @@
 
 namespace App\Jobs;
 
+use App\Enums\DeliveryStatus;
 use App\Models\Delivery;
 use App\Services\DeliveryDispatcher;
 use App\Services\DeliveryErrorSanitizer;
+use App\Services\ResponseRedactor;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +21,10 @@ class ProcessDelivery implements ShouldQueue
 
     public int $timeout = 30;
 
-    public function __construct(public readonly int $deliveryId) {}
+    public function __construct(
+        public readonly int $deliveryId,
+        private readonly ResponseRedactor $redactor = new ResponseRedactor,
+    ) {}
 
     public function backoff(): array
     {
@@ -31,9 +36,9 @@ class ProcessDelivery implements ShouldQueue
         $claimed = Delivery::query()
             ->whereKey($this->deliveryId)
             ->where(function ($query) {
-                $query->whereIn('status', ['pending', 'retrying'])
+                $query->whereIn('status', DeliveryStatus::queued())
                     ->orWhere(function ($stale) {
-                        $stale->where('status', 'processing')
+                        $stale->where('status', DeliveryStatus::Processing)
                             ->where(function ($lease) {
                                 $lease->whereNull('last_attempted_at')
                                     ->orWhere('last_attempted_at', '<=', now()->subSeconds(config('hookroute.delivery_processing_lease_seconds')));
@@ -41,7 +46,7 @@ class ProcessDelivery implements ShouldQueue
                     });
             })
             ->update([
-                'status' => 'processing',
+                'status' => DeliveryStatus::Processing,
                 'attempts' => DB::raw('attempts + 1'),
                 'last_attempted_at' => now(),
                 'last_error' => null,
@@ -54,14 +59,14 @@ class ProcessDelivery implements ShouldQueue
 
         try {
             $response = $dispatcher->deliver($delivery);
-            if ($delivery->refresh()->status === 'skipped') {
+            if ($delivery->refresh()->status === DeliveryStatus::Skipped) {
                 return;
             }
             if ($response && ! $response->successful()) {
                 $delivery->update([
-                    'status' => 'retrying',
+                    'status' => DeliveryStatus::Retrying,
                     'response_status' => $response->status(),
-                    'response_excerpt' => Str::limit($response->body(), config('hookroute.response_excerpt_bytes'), '…'),
+                    'response_excerpt' => Str::limit($this->redactor->redact($response->body()), config('hookroute.response_excerpt_bytes'), '…'),
                     'last_error' => 'Destination returned HTTP '.$response->status().'.',
                 ]);
 
@@ -69,16 +74,16 @@ class ProcessDelivery implements ShouldQueue
             }
 
             $delivery->update([
-                'status' => 'delivered',
+                'status' => DeliveryStatus::Delivered,
                 'response_status' => $response?->status(),
-                'response_excerpt' => $response ? Str::limit($response->body(), config('hookroute.response_excerpt_bytes'), '…') : null,
+                'response_excerpt' => $response ? Str::limit($this->redactor->redact($response->body()), config('hookroute.response_excerpt_bytes'), '…') : null,
                 'delivered_at' => now(),
             ]);
             $delivery->destination()->update(['last_delivered_at' => now()]);
         } catch (Throwable $exception) {
-            if ($delivery->fresh()->status !== 'retrying') {
-                Delivery::whereKey($delivery->id)->where('status', 'processing')->update([
-                    'status' => 'retrying',
+            if ($delivery->fresh()->status !== DeliveryStatus::Retrying) {
+                Delivery::whereKey($delivery->id)->where('status', DeliveryStatus::Processing)->update([
+                    'status' => DeliveryStatus::Retrying,
                     'last_error' => $errors->summarize($exception),
                 ]);
             }

@@ -23,9 +23,15 @@ class UrlGuard
         }
 
         $host = $parts['host'];
-        $addresses = filter_var($host, FILTER_VALIDATE_IP)
-            ? [$host]
-            : $this->resolve($host);
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            $addresses = [$host];
+        } else {
+            $addresses = collect($this->resolve($host));
+            if (($system = $this->systemAddress($host)) !== null) {
+                $addresses->push($system);
+            }
+            $addresses = $addresses->unique()->values()->all();
+        }
 
         if ($addresses === [] || collect($addresses)->contains(fn (string $ip) => ! $this->isPublicIp($ip))) {
             $this->reject();
@@ -56,6 +62,16 @@ class UrlGuard
             ->unique()
             ->values()
             ->all();
+    }
+
+    protected function systemAddress(string $host): ?string
+    {
+        // cURL resolves through the system resolver (/etc/hosts, container
+        // aliases), which can disagree with the DNS records above. Its
+        // answer must pass the same safety check as every other address.
+        $address = gethostbyname($host);
+
+        return $address === $host ? null : $address;
     }
 
     private function isPublicIp(string $ip): bool

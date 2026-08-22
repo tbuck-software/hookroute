@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\DeliveryStatus;
 use App\Enums\DestinationType;
 use App\Mail\EventNotificationMail;
 use App\Models\Delivery;
@@ -25,7 +26,7 @@ class DeliveryDispatcher
         $destination = $delivery->destination;
 
         if (! $destination->enabled) {
-            $delivery->update(['status' => 'skipped', 'last_error' => 'Destination is disabled.']);
+            $delivery->update(['status' => DeliveryStatus::Skipped, 'last_error' => 'Destination is disabled.']);
 
             return null;
         }
@@ -70,7 +71,12 @@ class DeliveryDispatcher
         $url = $config['url'] ?? '';
         $options = $this->requestOptions($url);
         $rendered = $this->renderer->render(
-            $delivery->connection->body_template ?: '**{{ source.name }}** · `{{ event.id }}`\n```json\n{{ payload }}\n```',
+            $delivery->connection->body_template ?: <<<'TPL'
+                **{{ source.name }}** · `{{ event.id }}`
+                ```json
+                {{ payload }}
+                ```
+                TPL,
             $delivery->event->templateContext(),
         );
         $decoded = json_decode($rendered, true);
@@ -91,10 +97,12 @@ class DeliveryDispatcher
         $subject = $this->renderer->render(
             $delivery->connection->subject_template ?: 'Event {{ event.id }} from {{ source.name }}',
             $delivery->event->templateContext(),
+            jsonSafe: false,
         );
         $body = $this->renderer->render(
             $delivery->connection->body_template ?: "Source: {{ source.name }}\nReceived: {{ event.received_at }}\n\n{{ payload }}",
             $delivery->event->templateContext(),
+            jsonSafe: false,
         );
 
         Mail::to($config['recipients'] ?? [])->send(new EventNotificationMail($delivery->event, $subject, $body));

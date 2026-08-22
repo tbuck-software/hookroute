@@ -25,41 +25,48 @@ class DispatchDigests extends Command
             ->where('enabled', true)
             ->with('connections')
             ->each(function (Destination $destination) use ($windows, $matcher) {
-                $window = $windows->dueWindow($destination->config, now());
-                if (! $window) {
+                $lastCoveredEnd = DigestRun::query()
+                    ->where('destination_id', $destination->id)
+                    ->orderByDesc('window_end')
+                    ->first()
+                    ?->window_end;
+                $dueWindows = $windows->dueWindows($destination->config, now(), $lastCoveredEnd);
+                if ($dueWindows === []) {
                     return;
                 }
 
-                [$start, $end] = $window;
                 $connectionsBySource = $destination->connections->where('enabled', true)->groupBy('source_id');
                 $sourceIds = $connectionsBySource->keys();
-                $events = Event::query()
-                    ->where('project_id', $destination->project_id)
-                    ->whereIn('source_id', $sourceIds)
-                    ->where('received_at', '>=', $start)
-                    ->where('received_at', '<', $end)
-                    ->orderBy('received_at')
-                    ->orderBy('id');
-                [$eventIds, $totalEventCount] = $this->matchingEvents(
-                    $events->cursor(),
-                    $connectionsBySource,
-                    $matcher,
-                );
 
-                $run = DigestRun::firstOrCreate([
-                    'destination_id' => $destination->id,
-                    'window_start' => $start,
-                    'window_end' => $end,
-                ], [
-                    'event_ids' => $eventIds,
-                    'event_count' => $eventIds->count(),
-                    'total_event_count' => $totalEventCount,
-                    'truncated' => $totalEventCount > $eventIds->count(),
-                    'status' => $eventIds->isEmpty() && ! ($destination->config['send_empty'] ?? false) ? 'skipped' : 'pending',
-                ]);
+                foreach ($dueWindows as [$start, $end]) {
+                    $events = Event::query()
+                        ->where('project_id', $destination->project_id)
+                        ->whereIn('source_id', $sourceIds)
+                        ->where('received_at', '>=', $start)
+                        ->where('received_at', '<', $end)
+                        ->orderBy('received_at')
+                        ->orderBy('id');
+                    [$eventIds, $totalEventCount] = $this->matchingEvents(
+                        $events->cursor(),
+                        $connectionsBySource,
+                        $matcher,
+                    );
 
-                if ($run->wasRecentlyCreated && $run->status === 'pending') {
-                    SendDigest::dispatch($run->id);
+                    $run = DigestRun::firstOrCreate([
+                        'destination_id' => $destination->id,
+                        'window_start' => $start,
+                        'window_end' => $end,
+                    ], [
+                        'event_ids' => $eventIds,
+                        'event_count' => $eventIds->count(),
+                        'total_event_count' => $totalEventCount,
+                        'truncated' => $totalEventCount > $eventIds->count(),
+                        'status' => $eventIds->isEmpty() && ! ($destination->config['send_empty'] ?? false) ? 'skipped' : 'pending',
+                    ]);
+
+                    if ($run->wasRecentlyCreated && $run->status === 'pending') {
+                        SendDigest::dispatch($run->id);
+                    }
                 }
             });
 

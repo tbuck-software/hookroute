@@ -46,7 +46,7 @@ class DestinationController extends Controller
     public function update(Request $request, Project $project, Destination $destination, UrlGuard $urlGuard): RedirectResponse
     {
         $this->authorize('update', $project);
-        $this->belongsTo($project, $destination);
+        $this->belongsToProject($destination, $project);
         $data = $this->validated($request, $urlGuard);
         if ($data['type'] === 'webhook' && blank($data['config']['signing_secret'] ?? null)) {
             $data['config']['signing_secret'] = $destination->config['signing_secret'] ?? null;
@@ -59,7 +59,7 @@ class DestinationController extends Controller
     public function destroy(Request $request, Project $project, Destination $destination): RedirectResponse
     {
         $this->authorize('update', $project);
-        $this->belongsTo($project, $destination);
+        $this->belongsToProject($destination, $project);
         $destination->delete();
 
         return back()->with('success', 'Destination deleted.');
@@ -123,8 +123,4 @@ class DestinationController extends Controller
         return $config;
     }
 
-    private function belongsTo(Project $project, Destination $destination): void
-    {
-        abort_unless($destination->project_id === $project->id, 404);
-    }
 }
