@@ -122,5 +122,4 @@ class DestinationController extends Controller
 
         return $config;
     }
-
 }

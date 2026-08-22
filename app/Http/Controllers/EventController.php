@@ -82,5 +82,4 @@ class EventController extends Controller
 
         return back()->with('success', $queued ? 'Delivery queued for replay.' : 'Delivery is already queued or processing.');
     }
-
 }

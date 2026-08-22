@@ -109,5 +109,4 @@ class SourceController extends Controller
 
         return back()->with('success', 'Source deleted.');
     }
-
 }
